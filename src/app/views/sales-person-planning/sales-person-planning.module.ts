@@ -1,5 +1,6 @@
 import { NgModule } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { MatPseudoCheckboxModule } from '@angular/material/core';
 
 import { SharedModule } from '../../shared/shared.module';
 import { SalesPersonPlanningRoutingModule } from './sales-person-planning-routing.module';
@@ -37,6 +38,7 @@ import { ClusterTypePipe } from './pipes/cluster-type.pipe';
     PreviewDialogComponent,
     ClusterTypePipe,
   ],
-  imports: [CommonModule, SalesPersonPlanningRoutingModule, SharedModule],
+  // MatPseudoCheckboxModule: the "Select all" rows of the Tasks tab drop-downs (not in the original app).
+  imports: [CommonModule, SalesPersonPlanningRoutingModule, SharedModule, MatPseudoCheckboxModule],
 })
 export class SalesPersonPlanningModule {}

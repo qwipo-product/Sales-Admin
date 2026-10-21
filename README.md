@@ -8,6 +8,8 @@ The original source repository wasn't available. This codebase was reconstructed
 
 Layout, CSS, texts, routes, dialogs and backend calls follow production. Bugs found in the original were fixed rather than copied; [docs/FIXES.md](docs/FIXES.md) lists every one.
 
+New features built on top of it are listed in [docs/ENHANCEMENTS.md](docs/ENHANCEMENTS.md), including any backend changes they need.
+
 ## Stack
 
 | | Version | Notes |
@@ -78,6 +80,7 @@ src/
       customers-list/, search-view/   empty pages, routed as in production
 docs/
   FIXES.md                    every behaviour that intentionally differs from production (bug fixes)
+  ENHANCEMENTS.md             new features and the backend changes they need
   reconstruction/             notes from the reconstruction: routes, backend calls, data fields, styles
 ```
 

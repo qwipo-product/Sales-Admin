@@ -356,6 +356,16 @@ export class SalesPersonService {
     }
   }
 
+  /**
+   * POST {coreUrl}/customer/company_share_by_salesperson body = { salespersonIds } -> data = CompanyShopShare[]
+   * (Tasks tab "Company" filter). Not part of the original app: the core API needs this endpoint; the mock backend has it.
+   */
+  async getCompanyShopShare(salespersonIds: string[]) {
+    const url = `${this.configService.getConfig().coreUrl}/customer/company_share_by_salesperson`;
+    const request$ = this.http.post<any>(url, { salespersonIds });
+    return (await lastValueFrom(request$))?.data;
+  }
+
   /** PUT {coreUrl}/customer/{id} body = data. Errors are logged and rethrown (the original swallowed them). */
   async updateSalePersonDb(customerId: string, data: any) {
     try {

@@ -23,6 +23,25 @@ export interface MockCustomer {
   pincode: string;
   salesPersonId: string;
   dealerId: string;
+  /** Ids of the MOCK_COMPANIES whose products the shop stocks. */
+  companies?: string[];
+}
+
+/** Companies offered by the Tasks tab "Company" filter. `share` is the chance that a shop stocks the company. */
+export const MOCK_COMPANIES = [
+  { id: 'CMP_PARLE', name: 'Parle', share: 0.81 },
+  { id: 'CMP_COLGATE', name: 'Colgate', share: 0.58 },
+  { id: 'CMP_EMAMI', name: 'Emami', share: 0.46 },
+  { id: 'CMP_MTR', name: 'MTR', share: 0.39 },
+  { id: 'CMP_MYSORE_SANDAL', name: 'Mysore Sandal', share: 0.28 },
+  { id: 'CMP_ITC', name: 'ITC', share: 0.6 },
+  { id: 'CMP_VICCO', name: 'Vicco', share: 0.28 },
+];
+
+/** Companies a shop stocks. Keyed on the customer id, so the main seed sequence (and every id) stays unchanged. */
+export function mockCompaniesFor(customerId: string): string[] {
+  const r = keyedRandom(`companies|${customerId}`);
+  return MOCK_COMPANIES.filter((company) => r.chance(company.share)).map((company) => company.id);
 }
 
 export interface MockSeed {
@@ -310,6 +329,7 @@ export function generateMockSeed(today = new Date()): MockSeed {
         pincode: area.pincode,
         salesPersonId: '',
         dealerId,
+        companies: mockCompaniesFor(customerId),
       });
       clusterCustomers[customerId] = { name: businessName };
     }

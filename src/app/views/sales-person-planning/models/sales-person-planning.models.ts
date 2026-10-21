@@ -46,7 +46,7 @@ export interface SalesPerson {
   salesManagerName: string;
   salesManagerMobileNumber: string;
   enableLogOut: boolean;
-  /** Added client-side on the Tasks tab (default 35, editable per row). */
+  /** Added client-side on the Tasks tab (tasks per day, default 35). */
   tasksCount?: any;
 }
 
@@ -111,11 +111,29 @@ export interface SalesPersonCustomerCount {
   customer_count: number;
 }
 
+/** Item of `${coreUrl}/customer/company_share_by_salesperson` response `.data`. */
+export interface CompanyShopShare {
+  company_id: string;
+  company_name: string;
+  shop_count: number;
+  total_shops: number;
+  shop_percentage: number; // 0..100, share of the sales persons' shops that stock the company
+}
+
+/** Option of the Tasks tab "Company" filter. */
+export interface CompanyOption {
+  id: string;
+  name: string;
+  color: string;
+  shopPercentage: number;
+}
+
 export interface TaskFilters {
   businessTypes: any[]; // BusinessType numeric enum values (Kirana = 1 ...)
   customerStatus: any[]; // 1 = Active, 0 = InActive
   businessStatus: any[]; // 1..11, 99
   customerOrderStatus: any[]; // '0-7' | '8-30' | '31-60' | '61-90' | '91-365' | '365+'
+  companyIds: string[]; // only shops that stock at least one of these companies
 }
 
 /** Sales person entry inside the data handed to the Preview dialog / CreateTasks payload. */

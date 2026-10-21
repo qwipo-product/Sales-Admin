@@ -5,35 +5,75 @@
         <h2 class="card-title m-3 text-violet">Filter by</h2>
         <form [formGroup]="form">
           <div class="row">
+            <div class="col-12">
+              <mat-form-field class="full-width">
+                <mat-label>Sales Person</mat-label>
+                <mat-select formControlName="salesPersonIds" multiple panelClass="sales-person-select-panel">
+                  <mat-select-trigger>{{ salesPersonTriggerText }}</mat-select-trigger>
+                  <div class="mat-mdc-option select-all-row" (click)="toggleAllSalesPersons()">
+                    <mat-pseudo-checkbox [state]="salesPersonsSelectAllState"></mat-pseudo-checkbox>
+                    <span>Select all</span>
+                  </div>
+                  <mat-divider></mat-divider>
+                  <mat-option *ngFor="let sp of salesPersonList" [value]="sp.id" class="sales-person-option">
+                    <div class="sp-card">
+                      <div class="sp-avatar">{{ initials(sp.name) }}</div>
+                      <div class="sp-info">
+                        <div class="sp-name">{{ sp.name }}</div>
+                        <div class="sp-area">
+                          <mat-icon>location_on</mat-icon>
+                          <span>{{ sp.areaName }}</span>
+                        </div>
+                      </div>
+                      <div class="sp-stats">
+                        <div class="sp-stat">
+                          <span class="sp-stat-value">{{ sp.customerCount || 0 }}</span>
+                          <span class="sp-stat-label">Customers</span>
+                        </div>
+                        <div class="sp-stat">
+                          <span class="sp-stat-value">{{ sp.tasksCount }}</span>
+                          <span class="sp-stat-label">Tasks / Day</span>
+                        </div>
+                      </div>
+                    </div>
+                  </mat-option>
+                </mat-select>
+                <mat-hint *ngIf="!selectedSalesPersonIds.length">Select a sales person to choose the other filters</mat-hint>
+                <mat-hint *ngIf="selectedSalesPersonIds.length">
+                  {{ selectedSalesPersonIds.length }} selected &middot; {{ selectedCustomersTotal }} customers
+                </mat-hint>
+              </mat-form-field>
+            </div>
+
             <div class="col-md-6">
-              <div>
-                <mat-form-field class="full-width">
-                  <input
-                    matInput
-                    formControlName="endDate"
-                    placeholder="Select Date"
-                    [matDatepicker]="appDatepicker1"
-                    [min]="minDate"
-                    (dateChange)="onSelect($event)"
-                  />
-                  <mat-datepicker-toggle matSuffix [for]="appDatepicker1"></mat-datepicker-toggle>
-                </mat-form-field>
-                <mat-datepicker #appDatepicker1></mat-datepicker>
-              </div>
-              <div class="dateSelectDiv" *ngIf="selectedDates.length > 0">
-                <ng-container *ngFor="let date of selectedDates; let i = index">
-                  <span class="datespan">
-                    <span>{{ date | date: 'yyyy-MM-dd' }}</span>
-                    <mat-icon class="closeicon" (click)="removeDate(i)">close</mat-icon>
-                  </span>
-                </ng-container>
-              </div>
+              <mat-form-field class="full-width">
+                <mat-label>Select From Date</mat-label>
+                <input
+                  matInput
+                  formControlName="fromDate"
+                  [matDatepicker]="fromDatepicker"
+                  [min]="minDate"
+                  (dateChange)="onFromDateChange()"
+                />
+                <mat-datepicker-toggle matSuffix [for]="fromDatepicker"></mat-datepicker-toggle>
+                <mat-datepicker #fromDatepicker></mat-datepicker>
+              </mat-form-field>
+            </div>
+
+            <div class="col-md-6">
+              <mat-form-field class="full-width">
+                <mat-label>Select To Date</mat-label>
+                <input matInput formControlName="toDate" [matDatepicker]="toDatepicker" [min]="toDateMin" />
+                <mat-datepicker-toggle matSuffix [for]="toDatepicker"></mat-datepicker-toggle>
+                <mat-datepicker #toDatepicker></mat-datepicker>
+                <mat-hint *ngIf="taskDates.length">{{ taskDates.length }} {{ taskDates.length === 1 ? 'day' : 'days' }}</mat-hint>
+              </mat-form-field>
             </div>
 
             <div class="col-md-6">
               <mat-form-field class="full-width">
                 <mat-label>Customer Status</mat-label>
-                <mat-select formControlName="customerStatusSelectRef" multiple (selectionChange)="getSelectedCustomerStatus()">
+                <mat-select formControlName="customerStatusSelectRef" multiple>
                   <mat-option *ngFor="let status of customerStatusList" [value]="status.value"> {{ status.name }} </mat-option>
                 </mat-select>
               </mat-form-field>
@@ -48,11 +88,7 @@
                     (change)="toggleSelectAllBusinessStatus()"
                     >Select All</mat-checkbox
                   >
-                  <mat-option
-                    *ngFor="let status of businessStatusList"
-                    [value]="status.value"
-                    (click)="isAllBusinessStatusSelected($event)"
-                  >
+                  <mat-option *ngFor="let status of businessStatusList" [value]="status.value">
                     {{ status.name }}
                   </mat-option>
                 </mat-select>
@@ -68,11 +104,7 @@
                     (change)="toggleSelectAllBusinessTypes()"
                     >Select All</mat-checkbox
                   >
-                  <mat-option
-                    *ngFor="let type of businessTypesList"
-                    [value]="type.value"
-                    (click)="isAllBusinessTypesSelected($event)"
-                  >
+                  <mat-option *ngFor="let type of businessTypesList" [value]="type.value">
                     {{ type.name }}
                   </mat-option>
                 </mat-select>
@@ -82,57 +114,39 @@
             <div class="col-md-6">
               <mat-form-field class="full-width">
                 <mat-label>Customer Order Status</mat-label>
-                <mat-select formControlName="customerOrderStatusRef" multiple (selectionChange)="getSelectedCustomerOrderStatus()">
+                <mat-select formControlName="customerOrderStatusRef" multiple>
                   <mat-option *ngFor="let status of customerOrderStatusList" [value]="status.value"> {{ status.name }} </mat-option>
                 </mat-select>
               </mat-form-field>
             </div>
+
+            <div class="col-md-6">
+              <mat-form-field class="full-width" appearance="fill">
+                <mat-label>Company</mat-label>
+                <mat-select formControlName="companyIds" multiple panelClass="company-select-panel">
+                  <mat-select-trigger>{{ companyTriggerText }}</mat-select-trigger>
+                  <div class="mat-mdc-option select-all-row" *ngIf="companies.length" (click)="toggleAllCompanies()">
+                    <mat-pseudo-checkbox [state]="companiesSelectAllState"></mat-pseudo-checkbox>
+                    <span>Select all</span>
+                  </div>
+                  <mat-divider *ngIf="companies.length"></mat-divider>
+                  <mat-option *ngFor="let company of companies" [value]="company.id" class="company-option">
+                    <span class="company-dot" [style.background-color]="company.color"></span>
+                    <span class="company-name">{{ company.name }}</span>
+                    <span class="company-share">{{ company.shopPercentage }}% of shops</span>
+                  </mat-option>
+                </mat-select>
+                <mat-hint *ngIf="companiesLoading">Updating shop share&hellip;</mat-hint>
+                <mat-hint *ngIf="!companiesLoading && companiesError" class="text-danger">Companies couldn't be loaded</mat-hint>
+              </mat-form-field>
+            </div>
+
+            <div class="col-12 generate-row">
+              <span class="generate-hint" *ngIf="!canGenerate">Select all the filters to generate tasks</span>
+              <button type="button" mat-raised-button color="primary" [disabled]="!canGenerate" (click)="generateTasks()">Generate</button>
+            </div>
           </div>
         </form>
-
-        <h2 class="card-title m-3 text-violet">Sales Person List</h2>
-        <div class="table-container">
-          <mat-table matSort [dataSource]="salesPersonList">
-            <ng-container matColumnDef="checkbox">
-              <mat-header-cell *matHeaderCellDef>
-                <mat-checkbox [checked]="selectAllCheckbox" (change)="toggleSelectAll()"></mat-checkbox>
-              </mat-header-cell>
-              <mat-cell *matCellDef="let element">
-                <mat-checkbox [checked]="checkboxStates[element.id]" (change)="toggleCheckbox(element)"></mat-checkbox>
-              </mat-cell>
-            </ng-container>
-
-            <ng-container matColumnDef="Name">
-              <mat-header-cell *matHeaderCellDef>Sales Person Name </mat-header-cell>
-              <mat-cell *matCellDef="let element" data-label="name"> {{ element.name }} </mat-cell>
-            </ng-container>
-
-            <ng-container matColumnDef="Area Name">
-              <mat-header-cell *matHeaderCellDef style="text-align: center">Area Name </mat-header-cell>
-              <mat-cell *matCellDef="let element" data-label="areaName"> {{ element.areaName }} </mat-cell>
-            </ng-container>
-
-            <ng-container matColumnDef="Customer Count">
-              <mat-header-cell *matHeaderCellDef>Customers</mat-header-cell>
-              <mat-cell *matCellDef="let element" data-label="customerCount" class="text-center"> {{ element.customerCount }} </mat-cell>
-            </ng-container>
-
-            <ng-container matColumnDef="Tasks Count">
-              <mat-header-cell *matHeaderCellDef> Tasks Count </mat-header-cell>
-              <mat-cell *matCellDef="let element" data-label="tasksCount">
-                <mat-form-field class="full-width mt-2">
-                  <input matInput placeholder="Enter Tasks Count" class="text-center" [(ngModel)]="element.tasksCount" />
-                </mat-form-field>
-              </mat-cell>
-            </ng-container>
-
-            <mat-header-row *matHeaderRowDef="salesPersonColumns"></mat-header-row>
-            <mat-row *matRowDef="let row; columns: salesPersonColumns"></mat-row>
-          </mat-table>
-        </div>
-      </div>
-      <div class="col-md-6 mt-5 text-right">
-        <button mat-raised-button class="m-2" color="primary" (click)="generateTasks()" *ngIf="permissionObj?.view"> Preview </button>
       </div>
     </div>
     <div class="mat-elevation-z8" *ngIf="salesPersonList && salesPersonList.length == 0">

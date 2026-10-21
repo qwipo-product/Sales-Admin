@@ -88,6 +88,7 @@ export class PreviewDialogComponent implements OnInit, OnDestroy {
         customerStatus: generateTasks.filters.customerStatus,
         businessStatus: generateTasks.filters.businessStatus,
         customerOrderStatus: generateTasks.filters.customerOrderStatus,
+        companyIds: generateTasks.filters.companyIds,
       },
     };
   }

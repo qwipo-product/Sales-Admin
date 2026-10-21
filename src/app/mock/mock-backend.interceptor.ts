@@ -5,7 +5,7 @@ import { Injectable } from '@angular/core';
 import { Observable, delay, of, throwError } from 'rxjs';
 import { ConfigService } from 'app/shared/services/config.service';
 import { MockDatabase } from './mock-database';
-import { MockCustomer, keyedRandom, ymd } from './mock-seed';
+import { MOCK_COMPANIES, MockCustomer, keyedRandom, ymd } from './mock-seed';
 
 type Ring = number[][];
 
@@ -66,6 +66,9 @@ export class MockBackendInterceptor implements HttpInterceptor {
       }
       if (url === `${core}/customer/count_by_salesperson`) {
         return this.ok({ success: true, data: this.countBySalesPerson(body) }, 500);
+      }
+      if (url === `${core}/customer/company_share_by_salesperson`) {
+        return this.ok({ success: true, data: this.companyShareBySalesPerson(body) }, 300);
       }
       if (url === `${core}/customer` && request.method === 'POST') {
         return this.ok({ success: true, data: [this.createCoreCustomer(body)] });
@@ -179,12 +182,14 @@ export class MockBackendInterceptor implements HttpInterceptor {
     const businessStatus: number[] = body.businessStatus || [];
     const businessType: number[] = body.businessType || [];
     const orderStatus: string[] = body.customerOrderStatus || [];
+    const companyIds: string[] = body.companyIds || [];
     return customers.filter(
       (c) =>
         (isActive.length === 0 || isActive.includes(c.isActive)) &&
         (businessStatus.length === 0 || businessStatus.includes(c.businessStatus)) &&
         (businessType.length === 0 || businessType.includes(c.businessType)) &&
-        (orderStatus.length === 0 || orderStatusMatches(c.lastOrderDays, orderStatus)),
+        (orderStatus.length === 0 || orderStatusMatches(c.lastOrderDays, orderStatus)) &&
+        (companyIds.length === 0 || (c.companies || []).some((id) => companyIds.includes(id))),
     );
   }
 
@@ -192,6 +197,22 @@ export class MockBackendInterceptor implements HttpInterceptor {
     const ids: string[] = body.salespersonIds || body.salesPersonIds || [];
     const customers = this.filterCustomers(body, this.db.customers());
     return ids.map((id) => ({ salesperson_id: id, customer_count: customers.filter((c) => c.salesPersonId === id).length }));
+  }
+
+  /** Share of the given sales persons' shops that stock each company (all of their shops when no ids are given). */
+  private companyShareBySalesPerson(body: any) {
+    const ids: string[] = body.salespersonIds || [];
+    const shops = this.db.customers().filter((c) => (ids.length ? ids.includes(c.salesPersonId) : !!c.salesPersonId));
+    return MOCK_COMPANIES.map((company) => {
+      const shopCount = shops.filter((c) => (c.companies || []).includes(company.id)).length;
+      return {
+        company_id: company.id,
+        company_name: company.name,
+        shop_count: shopCount,
+        total_shops: shops.length,
+        shop_percentage: shops.length ? Math.round((shopCount * 100) / shops.length) : 0,
+      };
+    });
   }
 
   private customersBySalesPerson(body: any) {
@@ -356,6 +377,7 @@ export class MockBackendInterceptor implements HttpInterceptor {
           businessStatus: filters.businessStatus || [],
           businessType: filters.businessTypes || [],
           customerOrderStatus: filters.customerOrderStatus || [],
+          companyIds: filters.companyIds || [],
         },
         this.db.customers().filter((c) => c.salesPersonId === sp.id),
       );
