@@ -474,6 +474,7 @@ test.describe('Planning: Tasks', () => {
   const VISIT_DAYS = RANGE.filter((offset) => !dayName(offset).endsWith('Sun'));
 
   async function openGenerate(page: Page): Promise<Locator> {
+    await expect(button(tasksTab(page), 'Generate')).toBeEnabled();
     await button(tasksTab(page), 'Generate').click();
     await waitForLoader(page);
     const dialog = page.locator('generate-tasks-dialog');
@@ -499,13 +500,19 @@ test.describe('Planning: Tasks', () => {
     await waitForLoader(page);
   });
 
-  test('the filters appear one after another; Generate shows once all of them have a value', async ({ page }) => {
+  test('the filters appear one after another; Generate is enabled once all of them have a value', async ({ page }) => {
     const tasks = tasksTab(page);
     const field = (label: string) => fieldByLabel(tasks, label);
     const generate = button(tasks, 'Generate');
+    /** Generate is always shown, and only enabled once every filter (including a company) has a value. */
+    const expectGenerate = async (enabled: boolean) => {
+      await expect(generate).toBeVisible();
+      await (enabled ? expect(generate).toBeEnabled() : expect(generate).toBeDisabled());
+    };
     const later = ['Select From Date', 'Select To Date', 'Customer Status', 'Business Status', 'Business Type', 'Customer Order Status', 'Company'];
     for (const label of later) await expect(field(label)).toHaveCount(0);
-    await expect(generate).toHaveCount(0);
+    await expectGenerate(false);
+    await expect(tasks.locator('.generate-row')).toHaveText(/^\s*Generate\s*$/);
 
     // Sales person (single select: picking another replaces the first).
     const salesPerson = field('Sales Person');
@@ -516,6 +523,7 @@ test.describe('Planning: Tasks', () => {
     const second = await choosePerson(page, 1);
     await expect(salesPerson.locator('.mat-mdc-select-value')).toHaveText(second.name);
     await expect(salesPerson.locator('mat-hint')).toHaveText(`${second.area} · ${second.customers} customers`);
+    await expectGenerate(false);
 
     // Dates: a day before today can't be picked.
     await expect(field('Select From Date')).toBeVisible();
@@ -527,37 +535,43 @@ test.describe('Planning: Tasks', () => {
     await pickDate(page, field('Select From Date'), RANGE[0]);
     await expect(field('Customer Status')).toHaveCount(0);
     await pickDate(page, field('Select To Date'), RANGE[RANGE.length - 1]);
+    await expectGenerate(false);
 
     // Each customer filter unlocks the next one.
     await selectOptions(page, field('Customer Status'), ['Active', 'InActive'], { multiple: true });
     await expect(field('Business Type')).toHaveCount(0);
+    await expectGenerate(false);
     await selectAllIn(page, 'Business Status', 'mat-checkbox');
     await expect(field('Customer Order Status')).toHaveCount(0);
+    await expectGenerate(false);
     await selectAllIn(page, 'Business Type', 'mat-checkbox');
     await expect(tasks.locator('.company-loader')).toHaveCount(0);
+    await expectGenerate(false);
     await selectOptions(page, field('Customer Order Status'), ORDER_STATUSES, { multiple: true });
 
     // The company shares load for these filters, then the Company field appears.
     await expect(tasks.locator('.company-loader')).toContainText('Loading companies');
+    await expectGenerate(false);
     await expect(field('Company')).toBeVisible();
     await expect(tasks.locator('.company-loader')).toHaveCount(0);
-    await expect(generate).toHaveCount(0);
+    await expectGenerate(false);
     const panel = await openSelect(page, field('Company'));
     await expect(panel.locator('mat-option.company-option').first()).toContainText(/\d+% of shops/);
     await expect(panel.locator('.company-dot')).toHaveCount(0);
     await page.keyboard.press('Escape');
     await selectAllIn(page, 'Company', '.select-all-row');
-    await expect(generate).toBeVisible();
+    await expectGenerate(true);
 
-    // Clearing a filter hides the later ones; their values come back with it (the companies reload).
+    // Clearing a filter hides the later ones and disables Generate; their values come back with it (the companies
+    // reload first).
     await selectAllIn(page, 'Business Type', 'mat-checkbox');
     await expect(field('Customer Order Status')).toHaveCount(0);
     await expect(field('Company')).toHaveCount(0);
-    await expect(generate).toHaveCount(0);
+    await expectGenerate(false);
     await selectAllIn(page, 'Business Type', 'mat-checkbox');
     await expect(field('Customer Order Status')).toBeVisible();
     await expect(field('Company')).toBeVisible();
-    await expect(generate).toBeVisible();
+    await expectGenerate(true);
   });
 
   test('Generate step 1 (Sets): shop maths, shops left out and a suggested set size', async ({ page }) => {
