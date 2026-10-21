@@ -230,7 +230,7 @@ export class MockBackendInterceptor implements HttpInterceptor {
         salesperson_id: c.salesPersonId,
         latitude: c.latitude,
         longitude: c.longitude,
-        brands: (c.companies || []).map((companyId) => ({
+        companies: (c.companies || []).map((companyId) => ({
           company_id: companyId,
           delivery_days: mockDeliveryDays(companyId, c.latitude, c.longitude),
         })),

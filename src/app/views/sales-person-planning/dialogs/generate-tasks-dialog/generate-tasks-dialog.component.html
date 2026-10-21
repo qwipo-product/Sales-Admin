@@ -110,8 +110,8 @@
   <ng-container *ngIf="step === 1">
     <h3 class="step-title">2. Pick a day for each set</h3>
     <p class="step-help">
-      Brand number = shops that brand delivers to the next day. Bottom line = different shops (a shop with two brands counts
-      once). <mat-icon class="inline-star">star</mat-icon> = best day. Click to choose.
+      Company number = shops that company delivers to the next day. Bottom line = different shops (a shop with two companies
+      counts once). <mat-icon class="inline-star">star</mat-icon> = best day. Click to choose.
     </p>
 
     <div class="plan-switcher" *ngIf="plansWithShops.length > 1">
@@ -171,15 +171,15 @@
               (keydown.space)="$event.preventDefault(); pick(plan, set, day)"
             >
               <ng-container *ngIf="set.cells[day.key] as cell">
-                <div class="cell-brands">
-                  <div class="brand-row" *ngFor="let brand of cell.brands | slice: 0 : 2">
-                    <span class="brand-dot" [style.background-color]="brand.color"></span>
-                    <span class="brand-name">{{ brand.name }}</span>
-                    <span class="brand-count">{{ brand.count }}</span>
+                <div class="cell-companies">
+                  <div class="company-row" *ngFor="let company of cell.companies | slice: 0 : 2">
+                    <span class="company-dot" [style.background-color]="company.color"></span>
+                    <span class="company-name">{{ company.name }}</span>
+                    <span class="company-count">{{ company.count }}</span>
                   </div>
-                  <div class="no-delivery" *ngIf="!cell.brands.length">No next-day delivery</div>
-                  <button type="button" class="more-link" *ngIf="cell.brands.length > 2" (click)="openBrands($event, set, day)">
-                    +{{ cell.brands.length - 2 }} more
+                  <div class="no-delivery" *ngIf="!cell.companies.length">No next-day delivery</div>
+                  <button type="button" class="more-link" *ngIf="cell.companies.length > 2" (click)="openCompanies($event, set, day)">
+                    +{{ cell.companies.length - 2 }} more
                   </button>
                 </div>
                 <div class="cell-footer">

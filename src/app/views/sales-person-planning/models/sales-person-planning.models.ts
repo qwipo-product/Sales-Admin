@@ -145,7 +145,7 @@ export interface ScheduleShop {
   latitude: number;
   longitude: number;
   /** Companies the shop stocks and the weekdays (0 = Sunday ... 6 = Saturday) each one delivers to it. */
-  brands: { company_id: string; delivery_days: number[] }[];
+  companies: { company_id: string; delivery_days: number[] }[];
 }
 
 /** Data handed to the Generate Tasks dialog by the Tasks tab. */

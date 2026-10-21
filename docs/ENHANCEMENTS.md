@@ -18,7 +18,7 @@ Files: `src/app/views/sales-person-planning/sales-person-tasks/*`, `src/styles/p
 
 Files: `src/app/views/sales-person-planning/dialogs/generate-tasks-dialog/*`, `dialogs/set-details-dialog/*`.
 
-Why: shops are no longer planned only by the sales person's area. The selected companies show which shops matter most: a shop that stocks more of them is a bigger sales opportunity. Sets keep those shops, and each set is visited the day before most of its brands deliver.
+Why: shops are no longer planned only by the sales person's area. The selected companies show which shops matter most: a shop that stocks more of them is a bigger sales opportunity. Sets keep those shops, and each set is visited the day before most of its companies deliver.
 
 Production showed a table (customers, days, tasks per day, warning) and a "Generate Tasks" button. Now the dialog has three steps. A step indicator and progress bar sit at the top; Back and Next sit at the bottom.
 
@@ -32,11 +32,11 @@ Production showed a table (customers, days, tasks per day, warning) and a "Gener
    - Each sales person's card shows their shop count and companies per shop.
 2. **Pick a day for each set**: a grid with one row per set and one column per visit day.
    - Columns are the first date of each weekday in the range ("22 Thursday", "Delivery 23 Friday"). **Sundays are never visit days.**
-   - Each cell shows the two brands delivering to the most of the set's shops the next day, then "+N more". That link opens a pop-up with every brand and a Close button.
+   - Each cell shows the two companies delivering to the most of the set's shops the next day, then "+N more". That link opens a pop-up with every company and a Close button.
    - The cell's bottom line counts the different shops with a next-day delivery. ★ marks the set's best day(s).
    - Click a cell to pick it. A day holds one set: picking a day another set holds moves it.
    - "N shops" under each set opens the set's shop list, most companies first.
-   - **Auto-pick days** gives every set its own day so that the most shops get a next-day delivery; ties go to the most brand deliveries. The result is optimal (checked against brute force). **Clear** removes the picks.
+   - **Auto-pick days** gives every set its own day so that the most shops get a next-day delivery; ties go to the most company deliveries. The result is optimal (checked against brute force). **Clear** removes the picks.
    - With several sales persons, a row of pills switches between them and shows each one's progress. "Auto-pick for all sales persons" does every one.
    - Next is enabled once every set has a day.
 3. **Schedule**: the selected filters, totals, and one card per visit day ("22 Thursday · Set 1 · 27 of 29 shops"). The totals are sales persons, sets, shops each week, shops with next-day delivery, visit dates, tasks and shops left out.
@@ -58,7 +58,7 @@ The sample-data backend (`src/app/mock`) already implements all of these. The co
    - Without it the Company drop-down stays empty, and because Company is required, **Generate stays disabled**.
 2. **New endpoint** `POST {coreUrl}/customer/shops_for_schedule` (Generate Tasks dialog)
    - Body: the filters `{ isActive, businessStatus, businessType, salespersonIds, customerOrderStatus, companyIds }`. These are count_by_salesperson's fields plus `companyIds`: keep shops that stock at least one of those companies.
-   - Response: `{ "success": true, "data": [{ "customer_id", "business_name", "area_name", "salesperson_id", "latitude", "longitude", "brands": [{ "company_id", "delivery_days": [2, 5] }] }] }`
+   - Response: `{ "success": true, "data": [{ "customer_id", "business_name", "area_name", "salesperson_id", "latitude", "longitude", "companies": [{ "company_id", "delivery_days": [2, 5] }] }] }`
    - `delivery_days` are the weekdays (0 = Sunday … 6 = Saturday) the company delivers to that shop.
    - Without it Generate shows "Something went wrong!".
 3. The **`CreateTasks`** queue message input changes:

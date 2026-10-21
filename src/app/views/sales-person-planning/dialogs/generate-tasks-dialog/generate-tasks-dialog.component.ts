@@ -26,17 +26,17 @@ export interface VisitDay {
   dates: Date[];
 }
 
-export interface BrandCount {
+export interface CompanyCount {
   id: string;
   name: string;
   color: string;
-  count: number; // shops of the set this brand delivers to the next day
+  count: number; // shops of the set this company delivers to the next day
 }
 
 export interface SetDayCell {
-  brands: BrandCount[]; // most shops first
+  companies: CompanyCount[]; // most shops first
   coveredShops: number; // different shops with at least one next-day delivery
-  deliveries: number; // brand deliveries (a shop with two brands counts twice)
+  deliveries: number; // company deliveries (a shop with two companies counts twice)
 }
 
 export interface ShopSet {
@@ -73,7 +73,7 @@ const DEFAULT_RETAILERS_PER_SET = 35;
  * "Generate Tasks" dialog of the Tasks tab (replaces production's "View Tasks Preview" table).
  * 1. Sets: number of sets and retailers per set for every selected sales person. When the sets can't hold every
  *    shop, the shops that stock the most of the selected companies are kept.
- * 2. Pick days: one visit day per set, judged by next-day brand deliveries (manual, or "Auto-pick days").
+ * 2. Pick days: one visit day per set, judged by next-day company deliveries (manual, or "Auto-pick days").
  * 3. Schedule: summary, then "Assign schedule" queues a CreateTasks message with the shops of every visit date.
  */
 @Component({
@@ -313,13 +313,13 @@ export class GenerateTasksDialogComponent implements OnDestroy {
     return `112px repeat(${this.visitDays.length}, minmax(168px, 1fr))`;
   }
 
-  openBrands(event: Event, set: ShopSet, day: VisitDay) {
+  openCompanies(event: Event, set: ShopSet, day: VisitDay) {
     event.stopPropagation();
     const cell = set.cells[day.key];
     this.openDetails({
       title: `Set ${set.index + 1} · ${this.dayName(day.date)}`,
       subtitle: `Delivery ${this.dayName(day.deliveryDate)} · ${cell.coveredShops} of ${set.shops.length} shops`,
-      items: cell.brands.map((brand) => ({ label: brand.name, value: brand.count, color: brand.color })),
+      items: cell.companies.map((company) => ({ label: company.name, value: company.count, color: company.color })),
     });
   }
 
@@ -460,20 +460,20 @@ export class GenerateTasksDialogComponent implements OnDestroy {
       let coveredShops = 0;
       let deliveries = 0;
       shops.forEach((shop) => {
-        const delivering = this.selectedBrands(shop).filter((brand) => (brand.delivery_days || []).includes(deliveryWeekday));
-        delivering.forEach((brand) => counts.set(brand.company_id, (counts.get(brand.company_id) || 0) + 1));
+        const delivering = this.selectedCompanies(shop).filter((stocked) => (stocked.delivery_days || []).includes(deliveryWeekday));
+        delivering.forEach((stocked) => counts.set(stocked.company_id, (counts.get(stocked.company_id) || 0) + 1));
         deliveries += delivering.length;
         if (delivering.length) {
           coveredShops++;
         }
       });
-      const brands = [...counts.entries()]
+      const companies = [...counts.entries()]
         .map(([id, count]) => {
           const company = this.companies.get(id);
           return { id, name: company?.name || id, color: company?.color || '#9e9e9e', count };
         })
         .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
-      cells[day.key] = { brands, coveredShops, deliveries };
+      cells[day.key] = { companies, coveredShops, deliveries };
     });
     const best = Math.max(0, ...Object.values(cells).map((cell) => cell.coveredShops));
     return {
@@ -501,17 +501,17 @@ export class GenerateTasksDialogComponent implements OnDestroy {
     return [...shops].sort((a, b) => this.companyCount(b) - this.companyCount(a) || a.customer_id.localeCompare(b.customer_id));
   }
 
-  /** The shop's brands that are among the selected companies. */
-  private selectedBrands(shop: ScheduleShop) {
-    return (shop.brands || []).filter((brand) => this.companies.has(brand.company_id));
+  /** The companies the shop stocks that are among the selected ones. */
+  private selectedCompanies(shop: ScheduleShop) {
+    return (shop.companies || []).filter((stocked) => this.companies.has(stocked.company_id));
   }
 
   private companyCount(shop: ScheduleShop): number {
-    return this.selectedBrands(shop).length;
+    return this.selectedCompanies(shop).length;
   }
 
   private companyNames(shop: ScheduleShop): string[] {
-    return this.selectedBrands(shop).map((brand) => this.companies.get(brand.company_id)?.name || brand.company_id);
+    return this.selectedCompanies(shop).map((stocked) => this.companies.get(stocked.company_id)?.name || stocked.company_id);
   }
 
   // ------------------------------------------------------------------------------------------- dates

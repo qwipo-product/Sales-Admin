@@ -422,11 +422,11 @@ $star: #f5a623;
   }
 }
 
-.cell-brands {
+.cell-companies {
   flex: 1 1 auto;
 }
 
-.brand-row {
+.company-row {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -436,14 +436,14 @@ $star: #f5a623;
   line-height: 22px;
 }
 
-.brand-dot {
+.company-dot {
   flex: none;
   width: 8px;
   height: 8px;
   border-radius: 50%;
 }
 
-.brand-name {
+.company-name {
   flex: 1 1 auto;
   min-width: 0;
   overflow: hidden;
@@ -451,7 +451,7 @@ $star: #f5a623;
   text-overflow: ellipsis;
 }
 
-.brand-count {
+.company-count {
   font-weight: 600;
 }
 

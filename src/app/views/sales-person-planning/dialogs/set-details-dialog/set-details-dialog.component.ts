@@ -17,7 +17,7 @@ export interface SetDetailsDialogData {
   items: SetDetailsItem[];
 }
 
-/** Small list pop-up of the Generate Tasks dialog: every brand of a set/day cell ("+3 more") or the shops of a set. */
+/** Small list pop-up of the Generate Tasks dialog: every company of a set/day cell ("+3 more") or the shops of a set. */
 @Component({
   selector: 'set-details-dialog',
   templateUrl: './set-details-dialog.component.html',
