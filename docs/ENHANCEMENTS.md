@@ -12,7 +12,7 @@ Files: `src/app/views/sales-person-planning/sales-person-tasks/*`, `src/styles/p
 | Other filters | Always shown | Shown **one after another**: From / To date once a sales person is picked, then Customer Status, Business Status, Business Type and Customer Order Status, each once the field before it has a value. Clearing a field hides the ones after it (their values are kept) |
 | Dates | One "Select Date" picker that adds dates as chips | **Select From Date** and **Select To Date**. Both start at today; To can't be before From, and changing From to a later day clears To. The number of days shows under To |
 | Company | – | **Company** drop-down, shown after Customer Order Status. A "Loading companies…" placeholder stands in for it while the shares load (they're reloaded whenever a filter above changes). "Select all" row, then one option per company with the share of the sales person's shops **matching the filters above** that stock it ("81% of shops") |
-| Button | "Preview", below the table, always enabled; missing filters gave warnings | **Generate**, right below the filters, shown only once every filter (including Company) has a value. Opens the Generate Tasks dialog below |
+| Button | "Preview", below the table, always enabled; missing filters gave warnings | **Generate**, right below the filters. Always shown, greyed out until every filter (including Company) has a value. Opens the Generate Tasks dialog below |
 
 ## Planning → Tasks: "Generate Tasks" dialog (replaces "View Tasks Preview")
 

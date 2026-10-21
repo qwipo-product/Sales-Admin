@@ -335,7 +335,7 @@ export class SalesPersonTasksComponent implements OnInit, OnDestroy {
   }
 
   // ------------------------------------------------------------------------------------------- generate
-  /** "Generate" shows once every filter has a value. */
+  /** "Generate" is enabled once every filter has a value (and the companies have loaded). */
   get canGenerate(): boolean {
     return (
       !!this.form &&

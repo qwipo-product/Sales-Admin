@@ -134,8 +134,9 @@
               </mat-form-field>
             </div>
 
-            <div class="col-12 generate-row" *ngIf="canGenerate">
-              <button type="button" mat-raised-button color="primary" (click)="generateTasks()">Generate</button>
+            <!-- Always shown; enabled once every filter, including Company, has a value. -->
+            <div class="col-12 generate-row">
+              <button type="button" mat-raised-button color="primary" [disabled]="!canGenerate" (click)="generateTasks()">Generate</button>
             </div>
           </div>
         </form>
