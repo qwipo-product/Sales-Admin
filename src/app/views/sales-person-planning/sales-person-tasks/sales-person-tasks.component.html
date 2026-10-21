@@ -8,16 +8,10 @@
             <div class="col-12">
               <mat-form-field class="full-width">
                 <mat-label>Sales Person</mat-label>
-                <mat-select formControlName="salesPersonIds" multiple panelClass="sales-person-select-panel">
-                  <mat-select-trigger>{{ salesPersonTriggerText }}</mat-select-trigger>
-                  <div class="mat-mdc-option select-all-row" (click)="toggleAllSalesPersons()">
-                    <mat-pseudo-checkbox [state]="salesPersonsSelectAllState"></mat-pseudo-checkbox>
-                    <span>Select all</span>
-                  </div>
-                  <mat-divider></mat-divider>
+                <mat-select formControlName="salesPersonId" panelClass="sales-person-select-panel">
+                  <mat-select-trigger>{{ selectedSalesPerson?.name }}</mat-select-trigger>
                   <mat-option *ngFor="let sp of salesPersonList" [value]="sp.id" class="sales-person-option">
                     <div class="sp-card">
-                      <div class="sp-avatar">{{ initials(sp.name) }}</div>
                       <div class="sp-info">
                         <div class="sp-name">{{ sp.name }}</div>
                         <div class="sp-area">
@@ -38,9 +32,9 @@
                     </div>
                   </mat-option>
                 </mat-select>
-                <mat-hint *ngIf="!selectedSalesPersonIds.length">Select a sales person to choose the other filters</mat-hint>
-                <mat-hint *ngIf="selectedSalesPersonIds.length">
-                  {{ selectedSalesPersonIds.length }} selected &middot; {{ selectedCustomersTotal }} customers
+                <mat-hint *ngIf="!selectedSalesPerson">Select a sales person to choose the other filters</mat-hint>
+                <mat-hint *ngIf="selectedSalesPerson">
+                  {{ selectedSalesPerson.areaName }} &middot; {{ selectedSalesPerson.customerCount || 0 }} customers
                 </mat-hint>
               </mat-form-field>
             </div>

@@ -150,15 +150,14 @@ export interface ScheduleShop {
 
 /** Data handed to the Generate Tasks dialog by the Tasks tab. */
 export interface GenerateTasksDialogData {
-  salesPersons: SalesPerson[];
+  /** Tasks are generated for one sales person at a time. */
+  salesPerson: SalesPerson;
   /** Every day of the selected From - To range. */
   dates: Date[];
   filters: TaskFilters;
   /** The selected companies, with their dot colours. */
   companies: CompanyOption[];
   shops: ScheduleShop[];
-  /** Selected filters as label / text pairs, shown on the Schedule step. */
-  summary: { label: string; value: string }[];
 }
 
 /** Sales person entry of the CreateTasks payload. */

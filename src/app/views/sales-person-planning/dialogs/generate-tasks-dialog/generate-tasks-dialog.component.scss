@@ -141,20 +141,6 @@ $star: #f5a623;
   gap: 12px;
 }
 
-.plan-avatar {
-  flex: none;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  background-color: #ede7f6;
-  color: $violet;
-  font-size: 13px;
-  font-weight: 600;
-}
-
 .plan-heading {
   flex: 1 1 auto;
   min-width: 0;
@@ -178,32 +164,6 @@ $star: #f5a623;
     height: 14px;
     font-size: 14px;
   }
-}
-
-.plan-stats {
-  display: flex;
-  gap: 8px;
-}
-
-.plan-stat {
-  min-width: 92px;
-  padding: 4px 10px;
-  border-radius: 6px;
-  background-color: #f5f5f8;
-  text-align: center;
-}
-
-.plan-stat-value {
-  display: block;
-  color: $text;
-  font-size: 15px;
-  font-weight: 600;
-}
-
-.plan-stat-label {
-  display: block;
-  color: $muted;
-  font-size: 11px;
 }
 
 .plan-inputs {
@@ -262,45 +222,6 @@ $star: #f5a623;
 }
 
 // ------------------------------------------------------------------------------------------- 2. pick days
-.plan-switcher {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 12px;
-}
-
-.plan-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  border: 1px solid $border;
-  border-radius: 18px;
-  background-color: #fff;
-  color: $text;
-  font: inherit;
-  font-size: 13px;
-  cursor: pointer;
-
-  .mat-icon {
-    width: 16px;
-    height: 16px;
-    color: $ok;
-    font-size: 16px;
-  }
-
-  &.active {
-    border-color: $primary;
-    background-color: rgba(0, 129, 255, 0.08);
-    font-weight: 600;
-  }
-}
-
-.pill-count {
-  color: $muted;
-  font-size: 12px;
-}
-
 .coverage-bar {
   display: flex;
   flex-wrap: wrap;
@@ -374,11 +295,6 @@ $star: #f5a623;
   color: $primary;
   font-size: 14px;
   text-decoration: underline;
-}
-
-.set-companies {
-  color: $muted;
-  font-size: 11px;
 }
 
 .day-cell {
@@ -508,66 +424,6 @@ $star: #f5a623;
 }
 
 // ------------------------------------------------------------------------------------------- 3. schedule
-.summary-card {
-  margin-bottom: 20px;
-  padding: 16px 20px;
-  border: 1px solid $border;
-  border-radius: 8px;
-  background-color: #fff;
-}
-
-.summary-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: 10px 24px;
-}
-
-.summary-item {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-
-.summary-label {
-  color: $muted;
-  font-size: 12px;
-}
-
-.summary-value {
-  color: $text;
-  font-size: 14px;
-  font-weight: 500;
-}
-
-.summary-totals {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  margin-top: 16px;
-  padding-top: 16px;
-  border-top: 1px solid $border;
-}
-
-.summary-total {
-  min-width: 120px;
-  padding: 8px 12px;
-  border-radius: 6px;
-  background-color: #f5f5f8;
-}
-
-.summary-total-value {
-  display: block;
-  color: $text;
-  font-size: 20px;
-  font-weight: 600;
-}
-
-.summary-total-label {
-  display: block;
-  color: $muted;
-  font-size: 12px;
-}
-
 .schedule-plan {
   margin-bottom: 20px;
 }

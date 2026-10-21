@@ -71,10 +71,11 @@ const DEFAULT_RETAILERS_PER_SET = 35;
 
 /**
  * "Generate Tasks" dialog of the Tasks tab (replaces production's "View Tasks Preview" table).
- * 1. Sets: number of sets and retailers per set for every selected sales person. When the sets can't hold every
- *    shop, the shops that stock the most of the selected companies are kept.
+ * Plans one sales person at a time.
+ * 1. Sets: number of sets and retailers per set. When the sets can't hold every shop, the shops that stock the most of
+ *    the selected companies are kept.
  * 2. Pick days: one visit day per set, judged by next-day company deliveries (manual, or "Auto-pick days").
- * 3. Schedule: summary, then "Assign schedule" queues a CreateTasks message with the shops of every visit date.
+ * 3. Schedule: the day-by-day schedule, then "Assign schedule" queues a CreateTasks message with the shops of every visit date.
  */
 @Component({
   selector: 'generate-tasks-dialog',
@@ -85,9 +86,7 @@ export class GenerateTasksDialogComponent implements OnDestroy {
   readonly steps = ['Sets', 'Pick days', 'Schedule'];
   step = 0;
   visitDays: VisitDay[];
-  plans: SalesPersonPlan[];
-  activePlanIndex = 0;
-  totals = { salesPersons: 0, sets: 0, shopsPerWeek: 0, nextDayShops: 0, visitDates: 0, tasks: 0, leftOut: 0 };
+  plan: SalesPersonPlan;
   private companies = new Map<string, CompanyOption>();
   private loader: ScopedLoader;
 
@@ -102,18 +101,16 @@ export class GenerateTasksDialogComponent implements OnDestroy {
     this.loader = new ScopedLoader(this.egretLoader);
     (data.companies || []).forEach((company) => this.companies.set(company.id, company));
     this.visitDays = this.getVisitDays(data.dates || []);
-    this.plans = (data.salesPersons || []).map((salesPerson) => {
-      const shops = (data.shops || []).filter((shop) => shop.salesperson_id === salesPerson.id);
-      return {
-        salesPerson,
-        shops: this.byCompanyCount(shops),
-        numberOfSets: Math.max(1, this.visitDays.length),
-        retailersPerSet: Number(salesPerson.tasksCount) || DEFAULT_RETAILERS_PER_SET,
-        sets: [],
-        builtFor: '',
-        picks: {},
-      };
-    });
+    const salesPerson = data.salesPerson;
+    this.plan = {
+      salesPerson,
+      shops: this.byCompanyCount((data.shops || []).filter((shop) => shop.salesperson_id === salesPerson.id)),
+      numberOfSets: Math.max(1, this.visitDays.length),
+      retailersPerSet: Number(salesPerson.tasksCount) || DEFAULT_RETAILERS_PER_SET,
+      sets: [],
+      builtFor: '',
+      picks: {},
+    };
   }
 
   ngOnDestroy(): void {
@@ -121,20 +118,12 @@ export class GenerateTasksDialogComponent implements OnDestroy {
   }
 
   // ------------------------------------------------------------------------------------------- navigation
-  get plansWithShops(): SalesPersonPlan[] {
-    return this.plans.filter((plan) => plan.shops.length > 0);
-  }
-
-  get activePlan(): SalesPersonPlan | undefined {
-    return this.plansWithShops[this.activePlanIndex];
-  }
-
   get canGoNext(): boolean {
     if (this.step === 0) {
-      return this.visitDays.length > 0 && this.plansWithShops.length > 0 && this.plansWithShops.every((plan) => this.isPlanValid(plan));
+      return this.visitDays.length > 0 && this.plan.shops.length > 0 && this.isPlanValid(this.plan);
     }
     if (this.step === 1) {
-      return this.plansWithShops.every((plan) => this.isPlanComplete(plan));
+      return this.isPlanComplete(this.plan);
     }
     return false;
   }
@@ -145,18 +134,13 @@ export class GenerateTasksDialogComponent implements OnDestroy {
       if (!this.visitDays.length) {
         return 'The selected dates have no visit days';
       }
-      if (!this.plansWithShops.length) {
+      if (!this.plan.shops.length) {
         return 'No shops match the filters';
       }
       return this.canGoNext ? '' : 'Check the number of sets and retailers per set';
     }
     if (this.step === 1 && !this.canGoNext) {
-      const plans = this.plansWithShops;
-      if (plans.length === 1) {
-        return `Pick a day for every set (${this.pickedCount(plans[0])} of ${plans[0].sets.length} picked)`;
-      }
-      const done = plans.filter((plan) => this.isPlanComplete(plan)).length;
-      return `Pick a day for every set (${done} of ${plans.length} sales persons done)`;
+      return `Pick a day for every set (${this.pickedCount(this.plan)} of ${this.plan.sets.length} picked)`;
     }
     return '';
   }
@@ -166,10 +150,7 @@ export class GenerateTasksDialogComponent implements OnDestroy {
       return;
     }
     if (this.step === 0) {
-      this.plansWithShops.forEach((plan) => this.buildSets(plan));
-      this.activePlanIndex = Math.min(this.activePlanIndex, this.plansWithShops.length - 1);
-    } else if (this.step === 1) {
-      this.totals = this.computeTotals();
+      this.buildSets(this.plan);
     }
     this.step++;
   }
@@ -293,10 +274,6 @@ export class GenerateTasksDialogComponent implements OnDestroy {
     });
   }
 
-  autoPickAll() {
-    this.plansWithShops.forEach((plan) => this.autoPick(plan));
-  }
-
   /** "Next-day coverage" line of the picked sets, or '' before anything is picked. */
   coverageText(plan: SalesPersonPlan): string {
     const picked = plan.sets.filter((set) => plan.picks[set.index]);
@@ -376,51 +353,36 @@ export class GenerateTasksDialogComponent implements OnDestroy {
   }
 
   buildPayload(): CreateTasksPayload {
+    const plan = this.plan;
     const schedule: ScheduledTaskDay[] = [];
-    this.plansWithShops.forEach((plan) => {
-      plan.sets.forEach((set) => {
-        const day = this.visitDays.find((d) => d.key === plan.picks[set.index]);
-        (day?.dates || []).forEach((date) => {
-          schedule.push({
-            salesPersonId: plan.salesPerson.id,
-            taskDate: this.ymd(date),
-            setNumber: set.index + 1,
-            customerIds: set.shops.map((shop) => shop.customer_id),
-          });
+    plan.sets.forEach((set) => {
+      const day = this.visitDays.find((d) => d.key === plan.picks[set.index]);
+      (day?.dates || []).forEach((date) => {
+        schedule.push({
+          salesPersonId: plan.salesPerson.id,
+          taskDate: this.ymd(date),
+          setNumber: set.index + 1,
+          customerIds: set.shops.map((shop) => shop.customer_id),
         });
       });
     });
-    schedule.sort((a, b) => a.taskDate.localeCompare(b.taskDate) || a.salesPersonId.localeCompare(b.salesPersonId));
+    schedule.sort((a, b) => a.taskDate.localeCompare(b.taskDate));
     return {
       messageQueueStatusId: generateMessageQueueStatusId(),
-      salesPersons: this.plansWithShops.map((plan) => ({
-        id: plan.salesPerson.id,
-        name: plan.salesPerson.name,
-        areaId: plan.salesPerson.areaId,
-        areaName: plan.salesPerson.areaName,
-        taskCountPerDay: plan.retailersPerSet,
-        numberOfSets: plan.sets.length,
-      })),
+      // CreateTasks keeps its list shape; the dialog always sends one sales person.
+      salesPersons: [
+        {
+          id: plan.salesPerson.id,
+          name: plan.salesPerson.name,
+          areaId: plan.salesPerson.areaId,
+          areaName: plan.salesPerson.areaName,
+          taskCountPerDay: plan.retailersPerSet,
+          numberOfSets: plan.sets.length,
+        },
+      ],
       taskDates: [...new Set(schedule.map((day) => day.taskDate))],
       filters: this.data.filters,
       schedule,
-    };
-  }
-
-  private computeTotals() {
-    const plans = this.plansWithShops;
-    const payload = this.buildPayload();
-    return {
-      salesPersons: plans.length,
-      sets: plans.reduce((total, plan) => total + plan.sets.length, 0),
-      shopsPerWeek: plans.reduce((total, plan) => total + plan.sets.reduce((sum, set) => sum + set.shops.length, 0), 0),
-      nextDayShops: plans.reduce(
-        (total, plan) => total + plan.sets.reduce((sum, set) => sum + (set.cells[plan.picks[set.index]]?.coveredShops || 0), 0),
-        0
-      ),
-      visitDates: payload.taskDates.length,
-      tasks: payload.schedule.reduce((total, day) => total + day.customerIds.length, 0),
-      leftOut: plans.reduce((total, plan) => total + this.leftOut(plan), 0),
     };
   }
 
@@ -532,13 +494,8 @@ export class GenerateTasksDialogComponent implements OnDestroy {
     return days;
   }
 
-  initials(name: string): string {
-    const parts = (name || '').trim().split(/\s+/).filter(Boolean);
-    return ((parts[0]?.[0] || '') + (parts.length > 1 ? parts[parts.length - 1][0] : '')).toUpperCase();
-  }
-
   dayName(date: Date): string {
-    return formatDate(date, 'd EEEE', this.locale);
+    return formatDate(date, 'd EEE', this.locale);
   }
 
   private ymd(date: Date): string {

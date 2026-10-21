@@ -1,5 +1,4 @@
-import { Component, Inject, LOCALE_ID, OnDestroy, OnInit } from '@angular/core';
-import { formatDate } from '@angular/common';
+import { Component, OnDestroy, OnInit } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup } from '@angular/forms';
 import { DateAdapter } from '@angular/material/core';
 import { MatDialog } from '@angular/material/dialog';
@@ -89,8 +88,7 @@ export class SalesPersonTasksComponent implements OnInit, OnDestroy {
     private dateAdapter: DateAdapter<Date>,
     private egretLoader: AppLoaderService,
     private dialog: MatDialog,
-    private authService: AuthService,
-    @Inject(LOCALE_ID) private locale: string
+    private authService: AuthService
   ) {
     this.minDate = this.dateAdapter.today();
     this.loader = new ScopedLoader(this.egretLoader);
@@ -132,7 +130,7 @@ export class SalesPersonTasksComponent implements OnInit, OnDestroy {
 
   initializeForm() {
     this.form = this.fb.group({
-      salesPersonIds: new FormControl<string[]>([]),
+      salesPersonId: new FormControl<string | null>(null),
       fromDate: new FormControl<Date | null>({ value: null, disabled: true }),
       toDate: new FormControl<Date | null>({ value: null, disabled: true }),
       customerStatusSelectRef: new FormControl({ value: null, disabled: true }),
@@ -142,9 +140,9 @@ export class SalesPersonTasksComponent implements OnInit, OnDestroy {
       companyIds: new FormControl<string[]>({ value: [], disabled: true }),
     });
     this.form
-      .get('salesPersonIds')
+      .get('salesPersonId')
       .valueChanges.pipe(takeUntil(this.destroy$))
-      .subscribe((ids: string[]) => this.onSalesPersonsChange(ids || []));
+      .subscribe((id: string | null) => this.onSalesPersonChange(id));
   }
 
   /** Only sales persons that already have an area (cluster) assigned. */
@@ -169,46 +167,28 @@ export class SalesPersonTasksComponent implements OnInit, OnDestroy {
   }
 
   // ------------------------------------------------------------------------------------------- sales persons
-  get selectedSalesPersonIds(): string[] {
-    return this.value('salesPersonIds') || [];
+  /** Tasks are generated for one sales person at a time. */
+  get selectedSalesPersonId(): string | null {
+    return this.value('salesPersonId') || null;
   }
 
-  get selectedSalespersons(): SalesPerson[] {
-    const ids = this.selectedSalesPersonIds;
-    return (this.salesPersonList || []).filter((sp) => ids.includes(sp.id));
-  }
-
-  get salesPersonsSelectAllState(): SelectAllState {
-    return this.selectAllState(this.selectedSalesPersonIds.length, this.salesPersonList?.length || 0);
-  }
-
-  get selectedCustomersTotal(): number {
-    return this.selectedSalespersons.reduce((total, sp) => total + (Number(sp.customerCount) || 0), 0);
-  }
-
-  toggleAllSalesPersons() {
-    const all = this.salesPersonsSelectAllState === 'checked';
-    this.form.get('salesPersonIds').setValue(all ? [] : this.salesPersonList.map((sp) => sp.id));
+  get selectedSalesPerson(): SalesPerson | undefined {
+    return (this.salesPersonList || []).find((sp) => sp.id === this.selectedSalesPersonId);
   }
 
   /** The other filters unlock once a sales person is selected; the Company shares follow the selection. */
-  onSalesPersonsChange(ids: string[]) {
+  onSalesPersonChange(id: string | null) {
     DEPENDENT_CONTROLS.forEach((name) => {
       const control = this.form.get(name);
-      if (ids.length) {
+      if (id) {
         control.enable({ emitEvent: false });
       } else {
         control.disable({ emitEvent: false });
       }
     });
-    if (ids.length) {
-      this.companyShare$.next(ids);
+    if (id) {
+      this.companyShare$.next([id]);
     }
-  }
-
-  initials(name: string): string {
-    const parts = (name || '').trim().split(/\s+/).filter(Boolean);
-    return ((parts[0]?.[0] || '') + (parts.length > 1 ? parts[parts.length - 1][0] : '')).toUpperCase();
   }
 
   // ------------------------------------------------------------------------------------------- dates
@@ -307,10 +287,6 @@ export class SalesPersonTasksComponent implements OnInit, OnDestroy {
   }
 
   // ------------------------------------------------------------------------------------------- triggers
-  get salesPersonTriggerText(): string {
-    return this.triggerText(this.selectedSalespersons.map((sp) => sp.name), this.salesPersonList?.length || 0, 'All sales persons');
-  }
-
   get companyTriggerText(): string {
     const names = this.companies.filter((c) => this.selectedCompanyIds.includes(c.id)).map((c) => c.name);
     return this.triggerText(names, this.companies.length, 'All companies');
@@ -336,7 +312,7 @@ export class SalesPersonTasksComponent implements OnInit, OnDestroy {
   get canGenerate(): boolean {
     return (
       !!this.form &&
-      this.selectedSalesPersonIds.length > 0 &&
+      !!this.selectedSalesPerson &&
       this.taskDates.length > 0 &&
       this.selectedCustomerStatus.length > 0 &&
       this.selectedBusinessStatus.length > 0 &&
@@ -366,7 +342,7 @@ export class SalesPersonTasksComponent implements OnInit, OnDestroy {
         isActive: filters.customerStatus,
         businessStatus: filters.businessStatus,
         businessType: filters.businessTypes,
-        salespersonIds: this.selectedSalesPersonIds,
+        salespersonIds: [this.selectedSalesPersonId],
         customerOrderStatus: filters.customerOrderStatus,
         companyIds: filters.companyIds,
       });
@@ -374,12 +350,11 @@ export class SalesPersonTasksComponent implements OnInit, OnDestroy {
         throw new Error('shops_for_schedule returned no data');
       }
       const data: GenerateTasksDialogData = {
-        salesPersons: this.selectedSalespersons,
+        salesPerson: this.selectedSalesPerson,
         dates: this.taskDates,
         filters,
         companies: this.companies.filter((company) => this.selectedCompanyIds.includes(company.id)),
         shops,
-        summary: this.filterSummary(),
       };
       this.loader.close();
       this.dialog.open(GenerateTasksDialogComponent, { width: '90%', height: '90%', maxWidth: '96vw', disableClose: true, data });
@@ -389,35 +364,6 @@ export class SalesPersonTasksComponent implements OnInit, OnDestroy {
     } finally {
       this.loader.close();
     }
-  }
-
-  /** The selected filters as label / text pairs (Schedule step of the Generate Tasks dialog). */
-  filterSummary(): { label: string; value: string }[] {
-    const dates = this.taskDates;
-    const visitDates = dates.filter((date) => date.getDay() !== 0).length;
-    const day = (date: Date) => formatDate(date, 'd MMM y', this.locale);
-    const range = dates.length > 1 ? `${day(dates[0])} – ${day(dates[dates.length - 1])}` : day(dates[0]);
-    const names = (list: { name: string; value: any }[], selected: any[]) =>
-      selected.length === list.length ? 'All' : list.filter((item) => selected.includes(item.value)).map((item) => item.name).join(', ');
-    const salesPersons = this.selectedSalespersons.map((sp) => sp.name);
-    return [
-      {
-        label: 'Sales persons',
-        value: salesPersons.length > 3 ? `${salesPersons.slice(0, 3).join(', ')} +${salesPersons.length - 3} more` : salesPersons.join(', '),
-      },
-      { label: 'Dates', value: `${range} · ${visitDates} visit ${visitDates === 1 ? 'day' : 'days'} (Sundays skipped)` },
-      { label: 'Customer status', value: names(this.customerStatusList, this.selectedCustomerStatus) },
-      { label: 'Business status', value: names(this.businessStatusList, this.selectedBusinessStatus) },
-      { label: 'Business type', value: names(this.businessTypesList, this.selectedBusinessTypes) },
-      { label: 'Customer order status', value: names(this.customerOrderStatusList, this.selectedCustomerOrderStatus) },
-      {
-        label: 'Companies',
-        value: names(
-          this.companies.map((company) => ({ name: company.name, value: company.id })),
-          this.selectedCompanyIds
-        ),
-      },
-    ];
   }
 
   /** Unused helper (kept from bundle). */
