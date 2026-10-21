@@ -457,13 +457,31 @@ test.describe('Planning: Tasks', () => {
     return name;
   }
 
-  async function preview(page: Page): Promise<Locator> {
+  /** "23 Friday": the day labels of the Generate Tasks dialog (format 'd EEEE'). */
+  function dayName(offset: number): string {
+    const date = day(offset).date;
+    return `${date.getUTCDate()} ${date.toLocaleDateString('en-US', { timeZone: 'UTC', weekday: 'long' })}`;
+  }
+
+  // The tests plan 23–29 October 2026 (+2 … +8), clear of the seeded tasks. Sunday the 25th is never a visit day.
+  const RANGE = [2, 3, 4, 5, 6, 7, 8];
+  const VISIT_DAYS = RANGE.filter((offset) => !dayName(offset).endsWith('Sunday'));
+
+  async function openGenerate(page: Page): Promise<Locator> {
     await expect(button(tasksTab(page), 'Generate')).toBeEnabled();
     await button(tasksTab(page), 'Generate').click();
     await waitForLoader(page);
-    const dialog = dialogTitled(page, 'View Tasks Preview');
-    await expect(dialog).toBeVisible();
+    const dialog = page.locator('generate-tasks-dialog');
+    await expect(heading(dialog, 'Generate Tasks')).toBeVisible();
     return dialog;
+  }
+
+  function planCard(dialog: Locator, name: string): Locator {
+    return dialog.locator('.plan-card', { has: dialog.page().locator('.plan-name', { hasText: exact(name) }) });
+  }
+
+  async function shopCount(card: Locator): Promise<number> {
+    return Number((await card.locator('.plan-stat-value').first().innerText()).trim());
   }
 
   test.beforeEach(async ({ page }) => {
@@ -491,56 +509,141 @@ test.describe('Planning: Tasks', () => {
     await page.keyboard.press('Escape');
   });
 
-  test('blocks generation when the days cannot cover the customers', async ({ page }) => {
-    const name = await fillFilters(page, 2, 2);
-    const dialog = await preview(page);
-    const row = rows(dialog).filter({ hasText: name });
-    await expect(row).toHaveCount(1);
-    const customers = Number((await row.locator('.cdk-column-customerCount').innerText()).trim());
-    expect(customers).toBeGreaterThan(35);
-    await expect(row.locator('.cdk-column-selectedDaysCount')).toHaveText('1');
-    await expect(row.locator('.cdk-column-taskCount')).toHaveText('35');
-    await expect(row.locator('.cdk-column-expectedTaskCount')).toHaveText(String(customers));
-    await expect(row.locator('.cdk-column-message')).toHaveText('Insufficient task assignments for selected dates.');
+  test('Generate step 1 (Sets): shop maths, shops left out and a suggested set size', async ({ page }) => {
+    const name = await fillFilters(page, RANGE[0], RANGE[RANGE.length - 1]);
+    await expect(fieldByLabel(tasksTab(page), 'Select To Date')).toContainText(`${RANGE.length} days`);
+    const dialog = await openGenerate(page);
+    await expect(dialog.locator('.wizard-step')).toHaveText([/Sets/, /Pick days/, /Schedule/]);
+    await expect(dialog.locator('.wizard-step.active')).toContainText('Sets');
+    await expect(dialog.locator('mat-progress-bar')).toHaveAttribute('aria-valuenow', /^33(\.\d+)?$/);
+    await expect(dialog.locator('.step-help')).toContainText(`${VISIT_DAYS.length} visit days`);
 
-    await button(dialog, 'Generate Tasks').click();
-    await closeSwal(page, 'There is a shortage of tasks that need assignment.');
-    await expect(dialog).toBeVisible();
-    await dialog.locator('mat-icon', { hasText: 'close' }).click();
+    const card = planCard(dialog, name);
+    const shops = await shopCount(card);
+    expect(shops).toBeGreaterThan(VISIT_DAYS.length * 10);
+    const sets = card.locator('input[id^="sets-"]');
+    const perSet = card.locator('input[id^="per-set-"]');
+    // Defaults: one set per visit day, 35 retailers per set (production's tasks per day).
+    await expect(sets).toHaveValue(String(VISIT_DAYS.length));
+    await expect(perSet).toHaveValue('35');
+
+    await perSet.fill('10');
+    const metrics = card.locator('.plan-metrics');
+    await expect(metrics).toContainText(`${VISIT_DAYS.length} sets × 10 = ${VISIT_DAYS.length * 10} of ${shops} shops`);
+    await expect(metrics.locator('.metric-warn')).toHaveText(`${shops - VISIT_DAYS.length * 10} left out this week`);
+    const suggested = Math.ceil(shops / VISIT_DAYS.length);
+    await expect(metrics.locator('.metric-link')).toHaveText(`Use ${suggested} per set`);
+    await metrics.locator('.metric-link').click();
+    await expect(perSet).toHaveValue(String(suggested));
+    await expect(metrics.locator('.metric-ok')).toHaveText('All shops covered');
+
+    // More sets than visit days is not allowed.
+    await sets.fill(String(VISIT_DAYS.length + 1));
+    await expect(card.getByText(`Enter 1 to ${VISIT_DAYS.length} sets and at least 1 retailer per set.`)).toBeVisible();
+    await expect(button(dialog, 'Next')).toBeDisabled();
+    await expect(dialog.locator('.wizard-footer-hint')).toHaveText('Check the number of sets and retailers per set');
+    await sets.fill('2');
+    await expect(button(dialog, 'Next')).toBeEnabled();
+
+    await dialog.locator('.wizard-header mat-icon', { hasText: 'close' }).click();
     await expect(dialog).toHaveCount(0);
   });
 
-  test('generates tasks that then appear in the Task Report', async ({ page }) => {
-    // Seven days of 35 tasks cover any area of the sample data.
-    const name = await fillFilters(page, 2, 8);
-    await expect(fieldByLabel(tasksTab(page), 'Select To Date')).toContainText('7 days');
-    const dialog = await preview(page);
-    const row = rows(dialog).filter({ hasText: name });
-    const customers = Number((await row.locator('.cdk-column-customerCount').innerText()).trim());
-    expect(customers).toBeGreaterThan(0);
-    await expect(row.locator('.cdk-column-selectedDaysCount')).toHaveText('7');
-    await expect(row.locator('.cdk-column-expectedTaskCount')).toHaveText(String(Math.ceil(customers / 7)));
-    await expect(row.locator('.cdk-column-message')).toHaveText(/There may be days when there will be no tasks assigned|Success/);
+  test('Generate: pick a day per set, assign the schedule, and see it in the Task Report', async ({ page }) => {
+    const name = await fillFilters(page, RANGE[0], RANGE[RANGE.length - 1]);
+    const dialog = await openGenerate(page);
 
-    await button(dialog, 'Generate Tasks').click();
+    // 1. Sets: three sets that hold every shop.
+    const card = planCard(dialog, name);
+    const shops = await shopCount(card);
+    await card.locator('input[id^="sets-"]').fill('3');
+    await card.locator('input[id^="per-set-"]').fill(String(Math.ceil(shops / 3)));
+    await expect(card.locator('.metric-ok')).toHaveText('All shops covered');
+    await button(dialog, 'Next').click();
+
+    // 2. Pick days: one column per visit day (no Sunday), one row per set.
+    await expect(dialog.locator('.wizard-step.active')).toContainText('Pick days');
+    await expect(dialog.locator('.day-header .day-name')).toHaveText(VISIT_DAYS.map(dayName));
+    await expect(dialog.locator('.day-header .day-delivery').first()).toHaveText(`Delivery ${dayName(VISIT_DAYS[0] + 1)}`);
+    await expect(dialog.locator('.set-header .set-name')).toHaveText(['Set 1', 'Set 2', 'Set 3']);
+    const setSizes = (await dialog.locator('.set-shops-link').allInnerTexts()).map((t) => parseInt(t, 10));
+    expect(setSizes.reduce((a, b) => a + b, 0)).toBe(shops);
+    const cells = dialog.locator('.day-cell');
+    await expect(cells).toHaveCount(3 * VISIT_DAYS.length);
+    await expect(button(dialog, 'Next')).toBeDisabled();
+    await expect(dialog.locator('.wizard-footer-hint')).toHaveText('Pick a day for every set (0 of 3 picked)');
+
+    // A click picks a day; a day holds one set, so picking it for another set moves it.
+    await cells.nth(0).click();
+    await expect(cells.nth(0)).toHaveClass(/\bpicked\b/);
+    await cells.nth(VISIT_DAYS.length).click();
+    await expect(cells.nth(VISIT_DAYS.length)).toHaveClass(/\bpicked\b/);
+    await expect(cells.nth(0)).not.toHaveClass(/\bpicked\b/);
+    await expect(dialog.locator('.day-cell.picked')).toHaveCount(1);
+    await button(dialog, 'Clear').click();
+    await expect(dialog.locator('.day-cell.picked')).toHaveCount(0);
+
+    // "+N more" lists every brand delivering the next day.
+    await dialog.locator('.more-link').first().click();
+    const details = page.locator('set-details-dialog');
+    await expect(details.locator('.details-item').first()).toBeVisible();
+    await button(details, 'Close').click();
+    await expect(details).toHaveCount(0);
+
+    await button(dialog, 'Auto-pick days').click();
+    await expect(dialog.locator('.day-cell.picked')).toHaveCount(3);
+    const pickedColumns = await cells.evaluateAll(
+      (els, columns) => els.map((el, i) => (el.classList.contains('picked') ? i % columns : -1)).filter((c) => c >= 0),
+      VISIT_DAYS.length,
+    );
+    expect(new Set(pickedColumns).size).toBe(3);
+    await expect(button(dialog, 'Next')).toBeEnabled();
+    await button(dialog, 'Next').click();
+
+    // 3. Schedule: one card per visit day, three of them with a set.
+    await expect(dialog.locator('.wizard-step.active')).toContainText('Schedule');
+    await expect(dialog.locator('.schedule-card')).toHaveCount(VISIT_DAYS.length);
+    const visits = await dialog.locator('.schedule-card:not(.empty)').evaluateAll((els) =>
+      els.map((el) => ({
+        day: el.querySelector('.schedule-day')!.textContent!.trim(),
+        set: Number(el.querySelector('.schedule-set')!.textContent!.trim().replace('Set ', '')),
+      })),
+    );
+    expect(visits).toHaveLength(3);
+    const total = (label: string) =>
+      dialog.locator('.summary-total', { has: page.locator('.summary-total-label', { hasText: exact(label) }) }).locator('.summary-total-value');
+    await expect(total('Sets')).toHaveText('3');
+    await expect(total('Tasks')).toHaveText(String(shops));
+
+    await button(dialog, 'Assign schedule').click();
+    await expectSwal(page, 'Success!');
     await closeSwal(page, 'Tasks are being generated. Please wait for 5 minutes.');
     await expect(dialog).toHaveCount(0);
 
+    // Task Report: one row per visit date, each with its set's shops.
+    const offsetOf = new Map(VISIT_DAYS.map((offset) => [dayName(offset), offset]));
+    const expected = visits
+      .map((v) => ({ date: day(offsetOf.get(v.day)!).ymd, count: setSizes[v.set - 1] }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+
     await open(page, '/task-report');
-    await pickDate(page, 'Start Date', 2);
-    await pickDate(page, 'End Date', 8);
+    await pickDate(page, 'Start Date', RANGE[0]);
+    await pickDate(page, 'End Date', RANGE[RANGE.length - 1]);
     await selectOptions(page, fieldByLabel(page, 'Sales Person'), [name], { multiple: true });
     await button(page, 'Search').click();
     await waitForLoader(page);
-    expect(await columnTexts(page, 'date')).toEqual([2, 3, 4, 5, 6, 7, 8].map((d) => day(d).ymd));
-    const counts = (await columnTexts(page, 'customerCount')).map(Number);
-    expect(counts.reduce((a, b) => a + b, 0)).toBe(customers);
-    expect(counts.every((c) => c <= 35)).toBe(true);
+    const reported = await rows(page).evaluateAll((els) =>
+      els.map((el) => ({
+        date: el.querySelector('.cdk-column-date')!.textContent!.trim(),
+        count: Number(el.querySelector('.cdk-column-customerCount')!.textContent!.trim()),
+      })),
+    );
+    expect(reported.sort((a, b) => a.date.localeCompare(b.date))).toEqual(expected);
     expect(new Set(await columnTexts(page, 'salesPersonName'))).toEqual(new Set([name]));
 
     await button(rows(page).first(), 'View Customers').click();
     await waitForLoader(page);
-    await expect(page.locator('.mat-mdc-paginator-range-label')).toHaveText(new RegExp(` of ${counts[0]}\\s*$`));
+    await expect(page.locator('.mat-mdc-paginator-range-label')).toHaveText(new RegExp(` of \\d+\\s*$`));
     expect(new Set(await columnTexts(page, 'status'))).toEqual(new Set(['Not Yet Visited']));
   });
 });
