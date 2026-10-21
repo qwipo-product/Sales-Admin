@@ -46,8 +46,9 @@ export default defineConfig({
     {
       name: 'chromium',
       // Full Chromium (new headless mode) rather than the default headless shell: under parallel load the headless
-      // shell now and then failed to parse the 9 MB dev-server vendor.js (a random SyntaxError, the app never started)
-      // although the bytes it received were intact. Not seen with full Chromium in 165 runs.
+      // shell failed to parse a dev-server bundle in ~1–2 % of page loads (a random SyntaxError although the bytes were
+      // intact; the app never started). Full Chromium does it far less often, and gotoApp() in e2e/fixtures.ts
+      // retries such a load once.
       use: { ...devices['Desktop Chrome'], channel: 'chromium', viewport: { width: 1440, height: 900 } },
     },
   ],
