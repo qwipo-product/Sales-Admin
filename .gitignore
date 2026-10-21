@@ -46,3 +46,7 @@ Thumbs.db
 
 # Vercel
 .vercel
+
+# Playwright (e2e/)
+/e2e/.results/
+/e2e/.report/
