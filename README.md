@@ -21,7 +21,7 @@ Layout, CSS, texts, routes, dialogs and backend calls follow production. Bugs fo
 | SweetAlert2 | 11.7.27 | Alerts |
 | SheetJS (xlsx) | 0.18.5 | Excel exports |
 | @turf/turf | 6.5.0 | Area polygon overlap checks |
-| Node.js | 18 | See `.nvmrc`. Angular 16 doesn't support Node 20+ |
+| Node.js | 18 (local) | See `.nvmrc`. Angular 16 officially supports Node 16/18; the build also works on Node 22, which Vercel uses |
 
 ## Getting started
 
@@ -98,3 +98,7 @@ npm run build:prod
 ```
 
 The output goes to `dist/sales-admin`. `assets/configs/config.json` is read at runtime, so the same build can be deployed to any environment by changing that file.
+
+## Deployment (Vercel)
+
+`vercel.json` holds the build settings (`npm run build` → `dist/sales-admin`) and a rewrite that serves `index.html` for every route, so deep links like `/task-report` work. The deployed app uses whatever `src/assets/configs/config.json` contains. With the default `"env": "mock"`, it runs on the built-in sample data and needs no backend.
