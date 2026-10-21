@@ -1,0 +1,22 @@
+<div class="details-header">
+  <div class="details-heading">
+    <h3 class="details-title">{{ data.title }}</h3>
+    <div class="details-subtitle" *ngIf="data.subtitle">{{ data.subtitle }}</div>
+  </div>
+  <button mat-icon-button type="button" aria-label="Close" (click)="dialogRef.close()">
+    <mat-icon>close</mat-icon>
+  </button>
+</div>
+<div class="details-list">
+  <div class="details-item" *ngFor="let item of data.items">
+    <span class="details-dot" *ngIf="item.color" [style.background-color]="item.color"></span>
+    <span class="details-label">
+      {{ item.label }}
+      <span class="details-detail" *ngIf="item.detail">{{ item.detail }}</span>
+    </span>
+    <span class="details-value" *ngIf="item.value !== undefined">{{ item.value }}</span>
+  </div>
+</div>
+<div class="details-actions">
+  <button mat-stroked-button type="button" (click)="dialogRef.close()">Close</button>
+</div>

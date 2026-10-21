@@ -44,6 +44,18 @@ export function mockCompaniesFor(customerId: string): string[] {
   return MOCK_COMPANIES.filter((company) => r.chance(company.share)).map((company) => company.id);
 }
 
+/**
+ * Weekdays (0 = Sunday ... 6 = Saturday) on which a company delivers to shops around this point. Distributor routes
+ * cover neighbourhoods, so every shop in the same ~300 m cell gets the same one or two days.
+ */
+export function mockDeliveryDays(companyId: string, latitude: number, longitude: number): number[] {
+  const cell = `${Math.floor(latitude / 0.003)}_${Math.floor(longitude / 0.003)}`;
+  const r = keyedRandom(`delivery|${companyId}|${cell}`);
+  const days = new Set<number>([r.int(0, 6)]);
+  if (r.chance(0.5)) days.add(r.int(0, 6));
+  return [...days].sort((a, b) => a - b);
+}
+
 export interface MockSeed {
   firestore: Record<string, Record<string, any>>;
   rtdb: any;

@@ -1,0 +1,645 @@
+$primary: #0081ff;
+$violet: #4a2981;
+$border: #e3e3ec;
+$muted: rgba(0, 0, 0, 0.6);
+$text: rgba(0, 0, 0, 0.87);
+$warn: #e0631d;
+$ok: #2e7d32;
+$star: #f5a623;
+
+:host {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background-color: #f7f7f9;
+}
+
+.text-violet {
+  color: $violet;
+}
+
+.closeicon {
+  cursor: pointer;
+  color: #212121;
+}
+
+// ------------------------------------------------------------------------------------------- header + progress
+.wizard-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 24px 8px;
+  background-color: #fff;
+}
+
+.wizard-progress {
+  padding: 0 24px 12px;
+  background-color: #fff;
+  border-bottom: 1px solid $border;
+}
+
+.wizard-steps {
+  display: flex;
+  gap: 32px;
+  margin-bottom: 10px;
+}
+
+.wizard-step {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: $muted;
+  font: inherit;
+  font-size: 14px;
+  cursor: default;
+
+  &.done {
+    cursor: pointer;
+    color: $text;
+  }
+
+  &.active {
+    color: $text;
+    font-weight: 600;
+  }
+}
+
+.wizard-step-number {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: 2px solid #c4c4cf;
+  border-radius: 50%;
+  font-size: 13px;
+  font-weight: 600;
+
+  .mat-icon {
+    width: 16px;
+    height: 16px;
+    font-size: 16px;
+  }
+
+  .active &,
+  .done & {
+    border-color: $primary;
+    background-color: $primary;
+    color: #fff;
+  }
+}
+
+// ------------------------------------------------------------------------------------------- body
+.wizard-body {
+  flex: 1 1 auto;
+  overflow: auto;
+  padding: 8px 24px 24px;
+}
+
+.step-title {
+  margin: 12px 0 4px;
+  color: $violet;
+  font-size: 22px;
+  font-weight: 500;
+}
+
+.step-help {
+  max-width: 920px;
+  margin: 0 0 16px;
+  color: $muted;
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.step-error {
+  color: #d32f2f;
+}
+
+.inline-star {
+  width: 16px;
+  height: 16px;
+  color: $star;
+  font-size: 16px;
+  vertical-align: -3px;
+}
+
+// ------------------------------------------------------------------------------------------- 1. sets
+.plan-card {
+  margin-bottom: 12px;
+  padding: 16px 20px;
+  border: 1px solid $border;
+  border-radius: 8px;
+  background-color: #fff;
+}
+
+.plan-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.plan-avatar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background-color: #ede7f6;
+  color: $violet;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.plan-heading {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.plan-name {
+  color: $text;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.plan-area {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  color: $muted;
+  font-size: 12px;
+
+  .mat-icon {
+    width: 14px;
+    height: 14px;
+    font-size: 14px;
+  }
+}
+
+.plan-stats {
+  display: flex;
+  gap: 8px;
+}
+
+.plan-stat {
+  min-width: 92px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  background-color: #f5f5f8;
+  text-align: center;
+}
+
+.plan-stat-value {
+  display: block;
+  color: $text;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.plan-stat-label {
+  display: block;
+  color: $muted;
+  font-size: 11px;
+}
+
+.plan-inputs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 16px;
+  margin-top: 16px;
+}
+
+.field-label {
+  margin: 0;
+  color: rgba(0, 0, 0, 0.7);
+  font-size: 16px;
+}
+
+.number-field {
+  width: 120px;
+  margin-right: 24px;
+}
+
+.plan-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px 24px;
+  margin-top: 12px;
+  font-size: 16px;
+}
+
+.metric-main {
+  color: $text;
+  font-weight: 600;
+}
+
+.metric-warn {
+  color: $warn;
+  font-weight: 500;
+}
+
+.metric-ok {
+  color: $ok;
+  font-weight: 500;
+}
+
+.metric-link {
+  color: $primary;
+  text-decoration: underline;
+}
+
+.metric-note,
+.metric-muted {
+  margin-top: 4px;
+  color: $muted;
+  font-size: 13px;
+}
+
+// ------------------------------------------------------------------------------------------- 2. pick days
+.plan-switcher {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.plan-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: 1px solid $border;
+  border-radius: 18px;
+  background-color: #fff;
+  color: $text;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+
+  .mat-icon {
+    width: 16px;
+    height: 16px;
+    color: $ok;
+    font-size: 16px;
+  }
+
+  &.active {
+    border-color: $primary;
+    background-color: rgba(0, 129, 255, 0.08);
+    font-weight: 600;
+  }
+}
+
+.pill-count {
+  color: $muted;
+  font-size: 12px;
+}
+
+.coverage-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  padding: 14px 20px;
+  border: 1px solid $border;
+  border-radius: 8px;
+  background-color: #fff;
+  font-size: 15px;
+}
+
+.coverage-label {
+  color: $text;
+  font-weight: 600;
+}
+
+.pick-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin: 16px 0;
+}
+
+.pick-grid-scroll {
+  overflow-x: auto;
+  border: 1px solid $border;
+  border-radius: 8px;
+  background-color: #fff;
+}
+
+.pick-grid {
+  display: grid;
+  gap: 10px 12px;
+  min-width: max-content;
+  padding: 0 12px 12px;
+}
+
+.grid-corner {
+  border-bottom: 1px solid $border;
+}
+
+.day-header {
+  padding: 14px 4px 10px;
+  border-bottom: 1px solid $border;
+  text-align: center;
+}
+
+.day-name {
+  color: $text;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.day-delivery {
+  color: $muted;
+  font-size: 12px;
+}
+
+.set-header {
+  align-self: center;
+  padding-left: 4px;
+}
+
+.set-name {
+  color: $text;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.set-shops-link {
+  color: $primary;
+  font-size: 14px;
+  text-decoration: underline;
+}
+
+.set-companies {
+  color: $muted;
+  font-size: 11px;
+}
+
+.day-cell {
+  display: flex;
+  flex-direction: column;
+  padding: 8px 12px;
+  border: 1px solid $border;
+  border-radius: 8px;
+  background-color: #fafafb;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 120ms, background-color 120ms;
+
+  &:hover,
+  &:focus-visible {
+    border-color: #9ec9ff;
+  }
+
+  &.best {
+    border-color: #9ec9ff;
+    background-color: #fff;
+
+    .cell-covered {
+      color: $primary;
+    }
+  }
+
+  // Day already picked for another set: still clickable (it moves the day to this set).
+  &.taken:not(.picked) {
+    opacity: 0.65;
+  }
+
+  &.picked {
+    border: 2px solid $primary;
+    padding: 7px 11px;
+    background-color: #eaf4ff;
+
+    .cell-covered {
+      color: $primary;
+    }
+  }
+}
+
+.cell-brands {
+  flex: 1 1 auto;
+}
+
+.brand-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: $text;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 22px;
+}
+
+.brand-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.brand-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.brand-count {
+  font-weight: 600;
+}
+
+.no-delivery {
+  color: $muted;
+  font-size: 13px;
+  line-height: 22px;
+}
+
+.more-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: $primary;
+  font: inherit;
+  font-size: 13px;
+  line-height: 20px;
+  cursor: pointer;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.cell-footer {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid #ececf2;
+}
+
+.cell-covered {
+  flex: 1 1 auto;
+  color: $text;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.picked-icon,
+.best-star {
+  width: 18px;
+  height: 18px;
+  font-size: 18px;
+}
+
+.picked-icon {
+  color: $primary;
+}
+
+.best-star {
+  color: $star;
+}
+
+// ------------------------------------------------------------------------------------------- 3. schedule
+.summary-card {
+  margin-bottom: 20px;
+  padding: 16px 20px;
+  border: 1px solid $border;
+  border-radius: 8px;
+  background-color: #fff;
+}
+
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 10px 24px;
+}
+
+.summary-item {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.summary-label {
+  color: $muted;
+  font-size: 12px;
+}
+
+.summary-value {
+  color: $text;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.summary-totals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid $border;
+}
+
+.summary-total {
+  min-width: 120px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  background-color: #f5f5f8;
+}
+
+.summary-total-value {
+  display: block;
+  color: $text;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.summary-total-label {
+  display: block;
+  color: $muted;
+  font-size: 12px;
+}
+
+.schedule-plan {
+  margin-bottom: 20px;
+}
+
+.schedule-plan-name {
+  margin-bottom: 10px;
+  color: $text;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.schedule-plan-area {
+  color: $muted;
+  font-weight: 400;
+}
+
+.schedule-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 14px;
+}
+
+.schedule-card {
+  padding: 14px 18px;
+  border-left: 4px solid $primary;
+  border-radius: 8px;
+  background-color: #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+
+  &.empty {
+    border-left-color: #c4c4cf;
+    opacity: 0.7;
+  }
+}
+
+.schedule-day {
+  color: $text;
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.schedule-set {
+  color: $text;
+  font-size: 15px;
+}
+
+.schedule-shops {
+  color: $muted;
+  font-size: 14px;
+}
+
+.schedule-repeat {
+  margin-top: 4px;
+  color: $muted;
+  font-size: 12px;
+}
+
+// ------------------------------------------------------------------------------------------- footer
+.wizard-footer {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 24px;
+  border-top: 1px solid $border;
+  background-color: #fff;
+}
+
+.wizard-footer-spacer {
+  flex: 1 1 auto;
+}
+
+.wizard-footer-hint {
+  color: $muted;
+  font-size: 13px;
+}

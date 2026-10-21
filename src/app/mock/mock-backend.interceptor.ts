@@ -5,7 +5,7 @@ import { Injectable } from '@angular/core';
 import { Observable, delay, of, throwError } from 'rxjs';
 import { ConfigService } from 'app/shared/services/config.service';
 import { MockDatabase } from './mock-database';
-import { MOCK_COMPANIES, MockCustomer, keyedRandom, ymd } from './mock-seed';
+import { MOCK_COMPANIES, MockCustomer, keyedRandom, mockDeliveryDays, ymd } from './mock-seed';
 
 type Ring = number[][];
 
@@ -66,6 +66,9 @@ export class MockBackendInterceptor implements HttpInterceptor {
       }
       if (url === `${core}/customer/count_by_salesperson`) {
         return this.ok({ success: true, data: this.countBySalesPerson(body) }, 500);
+      }
+      if (url === `${core}/customer/shops_for_schedule`) {
+        return this.ok({ success: true, data: this.shopsForSchedule(body) }, 500);
       }
       if (url === `${core}/customer/company_share_by_salesperson`) {
         return this.ok({ success: true, data: this.companyShareBySalesPerson(body) }, 300);
@@ -215,6 +218,25 @@ export class MockBackendInterceptor implements HttpInterceptor {
     });
   }
 
+  /** Shops of the given sales persons that match the Tasks filters, with each stocked company's delivery days. */
+  private shopsForSchedule(body: any) {
+    const ids: string[] = body.salespersonIds || [];
+    return this.filterCustomers(body, this.db.customers())
+      .filter((c) => ids.includes(c.salesPersonId))
+      .map((c) => ({
+        customer_id: c.id,
+        business_name: c.businessName,
+        area_name: c.areaName,
+        salesperson_id: c.salesPersonId,
+        latitude: c.latitude,
+        longitude: c.longitude,
+        brands: (c.companies || []).map((companyId) => ({
+          company_id: companyId,
+          delivery_days: mockDeliveryDays(companyId, c.latitude, c.longitude),
+        })),
+      }));
+  }
+
   private customersBySalesPerson(body: any) {
     const pageNumber = body.pageNumber || 1;
     const pageSize = body.pageSize || 50;
@@ -361,86 +383,99 @@ export class MockBackendInterceptor implements HttpInterceptor {
     this.updateSalesPersonIds({ salesPersonIds: [], salesPersonId, customerIds });
   }
 
-  /** Mirrors the backend job: one TasksReport per sales person per date and `taskCountPerDay` Tasks each. */
+  /**
+   * Mirrors the backend job: one TasksReport per sales person per date, one Task per shop. With a `schedule` (sets
+   * picked in the Generate Tasks dialog) each date gets exactly the shops of its set; without one, the filtered
+   * shops are handed out `taskCountPerDay` per date.
+   */
   private createTasks(input: any) {
     const statusId = input.messageQueueStatusId;
     if (statusId) {
       this.db.setDoc('MessageQueueStatus', statusId, { messageQueueStatusId: statusId, status: 2, createdTimeStamp: Date.now() });
     }
-    const filters = input.filters || {};
-    const dealerId = 'DLRHYD0001';
-    (input.salesPersons || []).forEach((sp: any) => {
-      const salesPerson = this.db.getDoc('SalesPerson', sp.id);
-      const customers = this.filterCustomers(
-        {
-          isActive: filters.customerStatus || [],
-          businessStatus: filters.businessStatus || [],
-          businessType: filters.businessTypes || [],
-          customerOrderStatus: filters.customerOrderStatus || [],
-          companyIds: filters.companyIds || [],
-        },
-        this.db.customers().filter((c) => c.salesPersonId === sp.id),
-      );
-      const perDay = Number(sp.taskCountPerDay || sp.tasksCount || 0);
-      let cursor = 0;
-      (input.taskDates || []).forEach((taskDate: string) => {
-        const existing = this.db.query('TasksReport', [
-          { fieldName: 'taskDate', operator: '==', fieldValue: taskDate },
-          { fieldName: 'salesPersonId', operator: '==', fieldValue: sp.id },
-        ]);
-        existing.forEach((r) => this.db.deleteDoc('TasksReport', r.id));
-        this.db
-          .query('Tasks', [
-            { fieldName: 'taskDate', operator: '==', fieldValue: taskDate },
-            { fieldName: 'salesPersonId', operator: '==', fieldValue: sp.id },
-          ])
-          .forEach((t) => this.db.deleteDoc('Tasks', t.id));
-        const dayCustomers = customers.slice(cursor, cursor + perDay);
-        cursor += perDay;
-        const dayStart = new Date(`${taskDate} 00:00:00`).getTime();
-        const reportId = `Report_${Date.now()}${Math.floor(Math.random() * 1e4)}`;
-        this.db.setDoc('TasksReport', reportId, {
-          salesPersonId: sp.id,
-          salesPersonName: sp.name || salesPerson?.name || '',
-          clusterId: sp.areaId || salesPerson?.cluster?.id || '',
-          clusterName: sp.areaName || salesPerson?.cluster?.name || '',
-          customerCount: dayCustomers.length,
-          taskDate,
-          taskDateTimestamp: dayStart,
-          isActive: true,
-          createdDate: ymd(new Date()),
-        });
-        dayCustomers.forEach((customer, index) => {
-          const taskId = `TASK${Date.now()}${Math.floor(Math.random() * 1e6)}`;
-          this.db.setDoc('Tasks', taskId, {
-            taskDate,
-            taskDateTimestamp: dayStart,
-            createdDate: ymd(new Date()),
-            customerId: customer.id,
-            dealerId,
-            stopNumber: index + 1,
-            status: 99,
-            interactionId: '',
-            salesPersonId: sp.id,
-            setInfo: { setName: sp.areaName || '' },
-            customerInfo: {
-              customerId: customer.id,
-              businessName: customer.businessName,
-              customerName: customer.customerName,
-              mobileNumber: customer.mobileNumber,
-              businessType: customer.businessType,
-              address: customer.address,
-              areaName: customer.areaName,
-              latitude: customer.latitude,
-              longitude: customer.longitude,
-            },
-            salesPersonInfo: { id: sp.id, name: sp.name || salesPerson?.name || '', subAreaName: sp.areaName || '' },
-          });
+    const salesPersons: any[] = input.salesPersons || [];
+    if (Array.isArray(input.schedule)) {
+      const customersById = new Map(this.db.customers().map((c) => [c.id, c]));
+      input.schedule.forEach((day: any) => {
+        const sp = salesPersons.find((s) => s.id === day.salesPersonId) || { id: day.salesPersonId };
+        const customers = (day.customerIds || []).map((id: string) => customersById.get(id)).filter(Boolean) as MockCustomer[];
+        this.writeDayTasks(sp, day.taskDate, customers, `Set ${day.setNumber}`);
+      });
+    } else {
+      const filters = input.filters || {};
+      salesPersons.forEach((sp: any) => {
+        const customers = this.filterCustomers(
+          {
+            isActive: filters.customerStatus || [],
+            businessStatus: filters.businessStatus || [],
+            businessType: filters.businessTypes || [],
+            customerOrderStatus: filters.customerOrderStatus || [],
+            companyIds: filters.companyIds || [],
+          },
+          this.db.customers().filter((c) => c.salesPersonId === sp.id),
+        );
+        const perDay = Number(sp.taskCountPerDay || sp.tasksCount || 0);
+        (input.taskDates || []).forEach((taskDate: string, index: number) => {
+          this.writeDayTasks(sp, taskDate, customers.slice(index * perDay, (index + 1) * perDay), sp.areaName || '');
         });
       });
-    });
+    }
     if (statusId) {
       this.db.updateDoc('MessageQueueStatus', statusId, { status: 4, completedTimeStamp: Date.now() });
     }
+  }
+
+  /** Replaces the sales person's TasksReport and Tasks of `taskDate` with one Task per customer. */
+  private writeDayTasks(sp: any, taskDate: string, dayCustomers: MockCustomer[], setName: string) {
+    const dealerId = 'DLRHYD0001';
+    const salesPerson = this.db.getDoc('SalesPerson', sp.id);
+    const salesPersonName = sp.name || salesPerson?.name || '';
+    const areaName = sp.areaName || salesPerson?.cluster?.name || '';
+    const dateFilter = [
+      { fieldName: 'taskDate', operator: '==', fieldValue: taskDate },
+      { fieldName: 'salesPersonId', operator: '==', fieldValue: sp.id },
+    ];
+    this.db.query('TasksReport', dateFilter).forEach((r) => this.db.deleteDoc('TasksReport', r.id));
+    this.db.query('Tasks', dateFilter).forEach((t) => this.db.deleteDoc('Tasks', t.id));
+    const dayStart = new Date(`${taskDate} 00:00:00`).getTime();
+    const reportId = `Report_${Date.now()}${Math.floor(Math.random() * 1e4)}`;
+    this.db.setDoc('TasksReport', reportId, {
+      salesPersonId: sp.id,
+      salesPersonName,
+      clusterId: sp.areaId || salesPerson?.cluster?.id || '',
+      clusterName: areaName,
+      customerCount: dayCustomers.length,
+      taskDate,
+      taskDateTimestamp: dayStart,
+      isActive: true,
+      createdDate: ymd(new Date()),
+    });
+    dayCustomers.forEach((customer, index) => {
+      const taskId = `TASK${Date.now()}${Math.floor(Math.random() * 1e6)}`;
+      this.db.setDoc('Tasks', taskId, {
+        taskDate,
+        taskDateTimestamp: dayStart,
+        createdDate: ymd(new Date()),
+        customerId: customer.id,
+        dealerId,
+        stopNumber: index + 1,
+        status: 99,
+        interactionId: '',
+        salesPersonId: sp.id,
+        setInfo: { setName },
+        customerInfo: {
+          customerId: customer.id,
+          businessName: customer.businessName,
+          customerName: customer.customerName,
+          mobileNumber: customer.mobileNumber,
+          businessType: customer.businessType,
+          address: customer.address,
+          areaName: customer.areaName,
+          latitude: customer.latitude,
+          longitude: customer.longitude,
+        },
+        salesPersonInfo: { id: sp.id, name: salesPersonName, subAreaName: areaName },
+      });
+    });
   }
 }

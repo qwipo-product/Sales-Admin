@@ -1,4 +1,5 @@
-import { Component, OnDestroy, OnInit } from '@angular/core';
+import { Component, Inject, LOCALE_ID, OnDestroy, OnInit } from '@angular/core';
+import { formatDate } from '@angular/common';
 import { FormBuilder, FormControl, FormGroup } from '@angular/forms';
 import { DateAdapter } from '@angular/material/core';
 import { MatDialog } from '@angular/material/dialog';
@@ -9,26 +10,26 @@ import { SalesPersonService } from '../../../shared/services/sales-person.servic
 import { AuthService } from '../../../shared/services/auth/auth.service';
 import { AppLoaderService } from '../../../shared/services/app-loader/app-loader.service';
 import { PageIds } from '../../../shared/constants/page-ids';
-import { BusinessType, MessageQueueStatus } from '../../../shared/models/enums';
+import { BusinessType } from '../../../shared/models/enums';
 // main 1972 helper names differ from the names this chunk was reconstructed with; aliased to keep the semantics:
 // customer status = Active/InActive, business status = Lost ... None, customer order status = days since last order.
 import {
-  formatDates as formatDatesToYMD,
   getCustomerStatusList as getBusinessStatusList,
   getBusinessTypeList as getBusinessTypes,
   getLastOrderDaysList as getCustomerOrderStatusList,
   getStatusList as getCustomerStatusList,
   showWarningAlert,
 } from '../../../shared/helpers/utils';
-import { PreviewDialogComponent } from '../dialogs/preview-dialog/preview-dialog.component';
+import { GenerateTasksDialogComponent } from '../dialogs/generate-tasks-dialog/generate-tasks-dialog.component';
 import { ScopedLoader } from '../services/scoped-loader';
 import {
   CompanyOption,
   CompanyShopShare,
-  GenerateTasksData,
+  GenerateTasksDialogData,
   PagePermission,
   SalesPerson,
-  SalesPersonCustomerCount,
+  ScheduleShop,
+  TaskFilters,
 } from '../models/sales-person-planning.models';
 
 type SelectAllState = 'checked' | 'indeterminate' | 'unchecked';
@@ -52,8 +53,10 @@ const DEPENDENT_CONTROLS = [
 /**
  * "Tasks" tab (selector `sales-person-tasks`, minified `Ry`).
  * Pick sales persons (only those with an area), a task date range, customer filters and companies, then
- * "Generate" -> count_by_salesperson -> Preview dialog -> "Generate Tasks" queues a CreateTasks message.
- * (The original picked dates one by one, chose sales persons and tasks/day in a table, and had no Company filter.)
+ * "Generate" -> shops_for_schedule -> Generate Tasks dialog (sets, a day per set, schedule) -> "Assign schedule"
+ * queues a CreateTasks message.
+ * (The original picked dates one by one, chose sales persons and tasks/day in a table, had no Company filter, and
+ * showed a "View Tasks Preview" table instead of the dialog.)
  */
 @Component({
   selector: 'sales-person-tasks',
@@ -86,7 +89,8 @@ export class SalesPersonTasksComponent implements OnInit, OnDestroy {
     private dateAdapter: DateAdapter<Date>,
     private egretLoader: AppLoaderService,
     private dialog: MatDialog,
-    private authService: AuthService
+    private authService: AuthService,
+    @Inject(LOCALE_ID) private locale: string
   ) {
     this.minDate = this.dateAdapter.today();
     this.loader = new ScopedLoader(this.egretLoader);
@@ -342,141 +346,78 @@ export class SalesPersonTasksComponent implements OnInit, OnDestroy {
     );
   }
 
-  mapToSalesPersons(salesPersons: SalesPerson[]) {
-    return salesPersons.map((sp) => ({
-      id: sp.id,
-      taskCountPerDay: Number(sp.tasksCount),
-      areaId: sp.areaId,
-      areaName: sp.areaName,
-    }));
-  }
-
-  /** "Generate" button. */
+  /** "Generate" button: loads the matching shops, then opens the Generate Tasks dialog (sets -> pick days -> schedule). */
   async generateTasks() {
     if (!this.canGenerate) {
       showWarningAlert('Please select all the filters');
       return;
     }
-    try {
-      const request = { salesPersons: this.mapToSalesPersons(this.selectedSalespersons) };
-      await this.checkTaskCount(request);
-    } catch (error) {
-      this.loader.close();
-      console.log('ERROR:::', error);
-    }
-  }
-
-  async checkTaskCount(request: any) {
+    const filters: TaskFilters = {
+      // business type names ('Kirana', ...) -> numeric BusinessType enum values (1, ...)
+      businessTypes: this.selectedBusinessTypes.map((type) => (BusinessType as any)[type]),
+      customerStatus: this.selectedCustomerStatus,
+      businessStatus: this.selectedBusinessStatus,
+      customerOrderStatus: this.selectedCustomerOrderStatus,
+      companyIds: this.selectedCompanyIds,
+    };
     this.loader.open();
     try {
-      const dates = this.taskDates;
-      // business type names ('Kirana', ...) -> numeric BusinessType enum values (1, ...)
-      const businessTypeIds = this.selectedBusinessTypes.map((type) => (BusinessType as any)[type]);
-      const customerCounts = await this.getCustomerCount(
-        this.selectedSalespersons,
-        dates,
-        this.selectedCustomerStatus,
-        this.selectedBusinessStatus,
-        businessTypeIds,
-        this.selectedCustomerOrderStatus,
-        this.selectedCompanyIds
-      );
-      const generateTasks: GenerateTasksData = {
-        salesPersons: this.mergeResponses(customerCounts, request, dates),
-        taskDates: formatDatesToYMD(dates),
-        filters: {
-          businessTypes: businessTypeIds,
-          customerStatus: this.selectedCustomerStatus,
-          businessStatus: this.selectedBusinessStatus,
-          customerOrderStatus: this.selectedCustomerOrderStatus,
-          companyIds: this.selectedCompanyIds,
-        },
+      const shops: ScheduleShop[] = await this.salesPersonService.getShopsForSchedule({
+        isActive: filters.customerStatus,
+        businessStatus: filters.businessStatus,
+        businessType: filters.businessTypes,
+        salespersonIds: this.selectedSalesPersonIds,
+        customerOrderStatus: filters.customerOrderStatus,
+        companyIds: filters.companyIds,
+      });
+      if (!Array.isArray(shops)) {
+        throw new Error('shops_for_schedule returned no data');
+      }
+      const data: GenerateTasksDialogData = {
+        salesPersons: this.selectedSalespersons,
+        dates: this.taskDates,
+        filters,
+        companies: this.companies.filter((company) => this.selectedCompanyIds.includes(company.id)),
+        shops,
+        summary: this.filterSummary(),
       };
       this.loader.close();
-      this.viewTaskDetails(generateTasks);
+      this.dialog.open(GenerateTasksDialogComponent, { width: '90%', height: '90%', maxWidth: '96vw', disableClose: true, data });
     } catch (error) {
-      console.log('error', error);
+      console.log('generateTasks Error ::: ', error);
       Swal.fire({ title: '', text: 'Something went wrong!', icon: 'error' });
     } finally {
       this.loader.close();
     }
   }
 
-  async getCustomerCount(
-    salesPersons: SalesPerson[],
-    dates: Date[],
-    customerStatus: any[],
-    businessStatus: any[],
-    businessTypes: any[],
-    customerOrderStatus: any[],
-    companyIds: string[]
-  ) {
-    const body = {
-      isActive: customerStatus,
-      businessStatus,
-      businessType: businessTypes,
-      salespersonIds: salesPersons.map((sp) => sp.id),
-      customerOrderStatus,
-      companyIds,
-    };
-    const counts: SalesPersonCustomerCount[] = await this.salesPersonService.getCustomerCount(body);
-    if (!Array.isArray(counts)) {
-      // SalesPersonService.getCustomerCount swallows HTTP errors and resolves undefined.
-      throw new Error('count_by_salesperson returned no data');
-    }
-    return counts.map((count) => {
-      const tasksCount = Number(salesPersons.find((sp) => sp.id === count.salesperson_id)?.tasksCount);
-      return {
-        salespersonId: count.salesperson_id,
-        name: salesPersons.find((sp) => sp.id === count.salesperson_id)?.name || 'Unknown',
-        dateLength: dates.length,
-        customerCount: count.customer_count,
-        tasksCount,
-        givenTaskCount: Math.ceil(dates.length * (tasksCount || 0)),
-        expectedTaskCount: Math.ceil(count.customer_count / dates.length),
-      };
-    });
-  }
-
-  mergeResponses(customerCounts: any[], request: any, dates: Date[]) {
-    return request.salesPersons.map((sp: any) => {
-      const count = customerCounts.find((c) => c.salespersonId === sp.id);
-      return {
-        id: sp.id,
-        name: this.selectedSalespersons.find((s) => s.id === sp.id)?.name || 'Unknown',
-        dateLength: dates.length,
-        customerCount: count ? count.customerCount : 0,
-        tasksCount: count ? count.tasksCount : sp.taskCountPerDay,
-        givenTaskCount: count ? count.givenTaskCount : 0,
-        expectedTaskCount: count ? count.expectedTaskCount : 0,
-        taskCountPerDay: sp.taskCountPerDay,
-        areaId: sp.areaId,
-        areaName: sp.areaName,
-      };
-    });
-  }
-
-  async viewTaskDetails(generateTasks: GenerateTasksData) {
-    this.dialog
-      .open(PreviewDialogComponent, {
-        width: '90%',
-        height: '90%',
-        disableClose: true,
-        data: { generateTasks },
-      })
-      .afterClosed()
-      .subscribe(async (result: any) => {
-        // NOTE: the preview dialog closes with {} so this never clears the filters.
-        if (result && result.taskStatus == MessageQueueStatus.Started) {
-          this.clearTaskFilters();
-        }
-      });
-  }
-
-  clearTaskFilters() {
-    this.form.reset({ salesPersonIds: [], companyIds: [] });
-    this.selectAllBusinessStatusCheckbox = false;
-    this.selectAllBusinessTypeCheckbox = false;
+  /** The selected filters as label / text pairs (Schedule step of the Generate Tasks dialog). */
+  filterSummary(): { label: string; value: string }[] {
+    const dates = this.taskDates;
+    const visitDates = dates.filter((date) => date.getDay() !== 0).length;
+    const day = (date: Date) => formatDate(date, 'd MMM y', this.locale);
+    const range = dates.length > 1 ? `${day(dates[0])} – ${day(dates[dates.length - 1])}` : day(dates[0]);
+    const names = (list: { name: string; value: any }[], selected: any[]) =>
+      selected.length === list.length ? 'All' : list.filter((item) => selected.includes(item.value)).map((item) => item.name).join(', ');
+    const salesPersons = this.selectedSalespersons.map((sp) => sp.name);
+    return [
+      {
+        label: 'Sales persons',
+        value: salesPersons.length > 3 ? `${salesPersons.slice(0, 3).join(', ')} +${salesPersons.length - 3} more` : salesPersons.join(', '),
+      },
+      { label: 'Dates', value: `${range} · ${visitDates} visit ${visitDates === 1 ? 'day' : 'days'} (Sundays skipped)` },
+      { label: 'Customer status', value: names(this.customerStatusList, this.selectedCustomerStatus) },
+      { label: 'Business status', value: names(this.businessStatusList, this.selectedBusinessStatus) },
+      { label: 'Business type', value: names(this.businessTypesList, this.selectedBusinessTypes) },
+      { label: 'Customer order status', value: names(this.customerOrderStatusList, this.selectedCustomerOrderStatus) },
+      {
+        label: 'Companies',
+        value: names(
+          this.companies.map((company) => ({ name: company.name, value: company.id })),
+          this.selectedCompanyIds
+        ),
+      },
+    ];
   }
 
   /** Unused helper (kept from bundle). */

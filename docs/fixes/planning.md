@@ -75,3 +75,5 @@ Items 1–3 below were applied by the lead in shared code (loader reuse, `insert
    latitude > 60), or a re-upload. Otherwise their overlap/"same" checks and Refresh customer counts stay wrong.
 5. **Backend**: the area link is read through `SalesPerson.clusterId`, but the UI writes only `SalesPerson.cluster {id,name}`.
    `clusterId` must stay maintained by the queue consumer. This is unchanged.
+
+> **Later change:** `preview-dialog.component.ts` and the Tasks tab's table, date chips and count call were replaced by new features (see [../ENHANCEMENTS.md](../ENHANCEMENTS.md)). The rows above describe the fixes made while they matched production.

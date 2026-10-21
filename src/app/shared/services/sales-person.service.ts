@@ -366,6 +366,17 @@ export class SalesPersonService {
     return (await lastValueFrom(request$))?.data;
   }
 
+  /**
+   * POST {coreUrl}/customer/shops_for_schedule body = count_by_salesperson filters -> data = ScheduleShop[]
+   * (shops behind the Tasks tab "Generate" dialog, with each company's delivery days). Not part of the original app:
+   * the core API needs this endpoint; the mock backend has it.
+   */
+  async getShopsForSchedule(body: any) {
+    const url = `${this.configService.getConfig().coreUrl}/customer/shops_for_schedule`;
+    const request$ = this.http.post<any>(url, body);
+    return (await lastValueFrom(request$))?.data;
+  }
+
   /** PUT {coreUrl}/customer/{id} body = data. Errors are logged and rethrown (the original swallowed them). */
   async updateSalePersonDb(customerId: string, data: any) {
     try {

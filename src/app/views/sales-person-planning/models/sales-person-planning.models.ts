@@ -2,7 +2,7 @@
  * Interfaces inferred from field usage in chunk 35 and in SalesPersonService (main.js module 2937).
  * None of these existed as runtime code (TS interfaces are erased); names are reconstructed.
  */
-import { ClusterType, TaskCountStatus } from '../../../shared/models/enums';
+import { ClusterType } from '../../../shared/models/enums';
 
 /** One polygon vertex as stored in Firestore `SalesPersonClusters/{id}.coordinates[]`. */
 export interface LatLng {
@@ -136,42 +136,57 @@ export interface TaskFilters {
   companyIds: string[]; // only shops that stock at least one of these companies
 }
 
-/** Sales person entry inside the data handed to the Preview dialog / CreateTasks payload. */
+/** Item of `${coreUrl}/customer/shops_for_schedule` response `.data`: a shop that matches the Tasks filters. */
+export interface ScheduleShop {
+  customer_id: string;
+  business_name: string;
+  area_name: string;
+  salesperson_id: string;
+  latitude: number;
+  longitude: number;
+  /** Companies the shop stocks and the weekdays (0 = Sunday ... 6 = Saturday) each one delivers to it. */
+  brands: { company_id: string; delivery_days: number[] }[];
+}
+
+/** Data handed to the Generate Tasks dialog by the Tasks tab. */
+export interface GenerateTasksDialogData {
+  salesPersons: SalesPerson[];
+  /** Every day of the selected From - To range. */
+  dates: Date[];
+  filters: TaskFilters;
+  /** The selected companies, with their dot colours. */
+  companies: CompanyOption[];
+  shops: ScheduleShop[];
+  /** Selected filters as label / text pairs, shown on the Schedule step. */
+  summary: { label: string; value: string }[];
+}
+
+/** Sales person entry of the CreateTasks payload. */
 export interface TaskSalesPerson {
   id: string;
   name: string;
-  dateLength: number;
-  customerCount: number;
-  tasksCount: any;
-  givenTaskCount: number;
-  expectedTaskCount: number;
-  taskCountPerDay: any;
   areaId: string;
   areaName: string;
+  taskCountPerDay: number; // retailers per set
+  numberOfSets: number;
 }
 
-export interface GenerateTasksData {
-  salesPersons: TaskSalesPerson[];
-  taskDates: string[]; // 'yyyy-MM-dd'
-  filters: TaskFilters;
+/** One visit of the weekly schedule: the shops of one set on one date. */
+export interface ScheduledTaskDay {
+  salesPersonId: string;
+  taskDate: string; // 'yyyy-MM-dd'
+  setNumber: number; // 1-based
+  customerIds: string[];
 }
 
 /** `input` of the CreateTasks message. */
-export interface CreateTasksPayload extends GenerateTasksData {
+export interface CreateTasksPayload {
   messageQueueStatusId: string; // "MESQU" + 10 random chars
-}
-
-/** Row of the "View Tasks Preview" table. */
-export interface TaskPreviewRow {
-  id: string;
-  customerCount: number;
-  name: string;
-  selectedDaysCount: number;
-  expectedTaskCount: number;
-  givenTaskCount: number;
-  taskCount: any;
-  message: string;
-  status: TaskCountStatus | undefined;
+  salesPersons: TaskSalesPerson[];
+  taskDates: string[]; // 'yyyy-MM-dd'
+  filters: TaskFilters;
+  /** Which shops to visit on which date (the sets picked in the Generate Tasks dialog). */
+  schedule: ScheduledTaskDay[];
 }
 
 /** Shape of AuthService.permission$ value[pageId]. */
