@@ -426,15 +426,22 @@ test.describe('Planning: Tasks', () => {
     return page.locator('sales-person-tasks');
   }
 
-  async function pickSalesPerson(page: Page): Promise<string> {
+  /** Picks the `index`-th sales person (single select: the panel closes on the click); returns what the card shows. */
+  async function choosePerson(page: Page, index = 0): Promise<{ name: string; area: string; customers: string }> {
     const panel = await openSelect(page, fieldByLabel(tasksTab(page), 'Sales Person'));
-    const option = panel.locator('mat-option.sales-person-option').first();
+    await expect(panel.locator('.select-all-row')).toHaveCount(0);
+    const option = panel.locator('mat-option.sales-person-option').nth(index);
     const name = (await option.locator('.sp-name').innerText()).trim();
+    const area = (await option.locator('.sp-area span').innerText()).trim();
+    const customers = (await option.locator('.sp-stat', { hasText: 'Customers' }).locator('.sp-stat-value').innerText()).trim();
     await expect(option.locator('.sp-stat', { hasText: 'Tasks / Day' })).toContainText('35');
     await option.click();
-    await page.keyboard.press('Escape');
     await expect(panel).toHaveCount(0);
-    return name;
+    return { name, area, customers };
+  }
+
+  async function pickSalesPerson(page: Page): Promise<string> {
+    return (await choosePerson(page)).name;
   }
 
   async function selectAllIn(page: Page, label: string, selectAll: string) {
@@ -501,8 +508,16 @@ test.describe('Planning: Tasks', () => {
     await expect(fieldByLabel(tasksTab(page), 'Business Status').locator('mat-select')).toHaveAttribute('aria-disabled', 'true');
     await expect(fieldByLabel(tasksTab(page), 'Select From Date').locator('input')).toBeDisabled();
 
-    await pickSalesPerson(page);
-    await expect(tasksTab(page).getByText(/1 selected · \d+ customers/)).toBeVisible();
+    const salesPerson = fieldByLabel(tasksTab(page), 'Sales Person');
+    await expect(salesPerson.locator('mat-hint')).toHaveText('Select a sales person to choose the other filters');
+    const first = await choosePerson(page, 0);
+    await expect(salesPerson.locator('.mat-mdc-select-value')).toHaveText(first.name);
+    await expect(salesPerson.locator('mat-hint')).toHaveText(`${first.area} · ${first.customers} customers`);
+
+    // One sales person per generation: picking another replaces the first.
+    const second = await choosePerson(page, 1);
+    await expect(salesPerson.locator('.mat-mdc-select-value')).toHaveText(second.name);
+    await expect(salesPerson.locator('mat-hint')).toHaveText(`${second.area} · ${second.customers} customers`);
     await expect(fieldByLabel(tasksTab(page), 'Business Status').locator('mat-select')).toHaveAttribute('aria-disabled', 'false');
     await expect(fieldByLabel(tasksTab(page), 'Select From Date').locator('input')).toBeEnabled();
     await expect(generate).toBeDisabled();
@@ -556,7 +571,8 @@ test.describe('Planning: Tasks', () => {
     const name = await fillFilters(page, RANGE[0], RANGE[RANGE.length - 1]);
     const dialog = await openGenerate(page);
 
-    // 1. Sets: three sets that hold every shop.
+    // 1. Sets: one sales person per generation; three sets that hold every shop.
+    await expect(dialog.locator('.plan-card')).toHaveCount(1);
     const card = planCard(dialog, name);
     const shops = await shopCount(card);
     await card.locator('input[id^="sets-"]').fill('3');
@@ -569,6 +585,8 @@ test.describe('Planning: Tasks', () => {
     await expect(dialog.locator('.day-header .day-name')).toHaveText(VISIT_DAYS.map(dayName));
     await expect(dialog.locator('.day-header .day-delivery').first()).toHaveText(`Delivery ${dayName(VISIT_DAYS[0] + 1)}`);
     await expect(dialog.locator('.set-header .set-name')).toHaveText(['Set 1', 'Set 2', 'Set 3']);
+    await expect(dialog.locator('.plan-pill')).toHaveCount(0);
+    await expect(button(dialog, 'Auto-pick for all sales persons')).toHaveCount(0);
     const setSizes = (await dialog.locator('.set-shops-link').allInnerTexts()).map((t) => parseInt(t, 10));
     expect(setSizes.reduce((a, b) => a + b, 0)).toBe(shops);
     const cells = dialog.locator('.day-cell');
@@ -606,6 +624,7 @@ test.describe('Planning: Tasks', () => {
 
     // 3. Schedule: the sales person's line and one card per visit day, three of them with a set.
     await expect(dialog.locator('.wizard-step.active')).toContainText('Schedule');
+    await expect(dialog.locator('.schedule-plan')).toHaveCount(1);
     await expect(dialog.locator('.schedule-plan-name')).toContainText(name);
     await expect(dialog.locator('.schedule-card')).toHaveCount(VISIT_DAYS.length);
     await expect(dialog.locator('.schedule-card.empty .schedule-set')).toHaveText(Array(VISIT_DAYS.length - 3).fill('No visit'));
