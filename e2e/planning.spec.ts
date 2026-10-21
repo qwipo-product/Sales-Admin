@@ -457,15 +457,15 @@ test.describe('Planning: Tasks', () => {
     return name;
   }
 
-  /** "23 Friday": the day labels of the Generate Tasks dialog (format 'd EEEE'). */
+  /** "23 Fri": the day labels of the Generate Tasks dialog (format 'd EEE'). */
   function dayName(offset: number): string {
     const date = day(offset).date;
-    return `${date.getUTCDate()} ${date.toLocaleDateString('en-US', { timeZone: 'UTC', weekday: 'long' })}`;
+    return `${date.getUTCDate()} ${date.toLocaleDateString('en-US', { timeZone: 'UTC', weekday: 'short' })}`;
   }
 
   // The tests plan 23–29 October 2026 (+2 … +8), clear of the seeded tasks. Sunday the 25th is never a visit day.
   const RANGE = [2, 3, 4, 5, 6, 7, 8];
-  const VISIT_DAYS = RANGE.filter((offset) => !dayName(offset).endsWith('Sunday'));
+  const VISIT_DAYS = RANGE.filter((offset) => !dayName(offset).endsWith('Sun'));
 
   async function openGenerate(page: Page): Promise<Locator> {
     await expect(button(tasksTab(page), 'Generate')).toBeEnabled();
@@ -480,8 +480,12 @@ test.describe('Planning: Tasks', () => {
     return dialog.locator('.plan-card', { has: dialog.page().locator('.plan-name', { hasText: exact(name) }) });
   }
 
+  /** The sales person's shop total, from "6 sets × 35 = 210 places for 172 shops" / "… = 60 of 172 shops". */
   async function shopCount(card: Locator): Promise<number> {
-    return Number((await card.locator('.plan-stat-value').first().innerText()).trim());
+    const text = await card.locator('.metric-main').innerText();
+    const match = text.match(/(?:of|for) (\d+) shops/);
+    expect(match, `shop total in "${text}"`).toBeTruthy();
+    return Number(match![1]);
   }
 
   test.beforeEach(async ({ page }) => {
@@ -516,7 +520,6 @@ test.describe('Planning: Tasks', () => {
     await expect(dialog.locator('.wizard-step')).toHaveText([/Sets/, /Pick days/, /Schedule/]);
     await expect(dialog.locator('.wizard-step.active')).toContainText('Sets');
     await expect(dialog.locator('mat-progress-bar')).toHaveAttribute('aria-valuenow', /^33(\.\d+)?$/);
-    await expect(dialog.locator('.step-help')).toContainText(`${VISIT_DAYS.length} visit days`);
 
     const card = planCard(dialog, name);
     const shops = await shopCount(card);
@@ -586,6 +589,7 @@ test.describe('Planning: Tasks', () => {
     // "+N more" lists every brand delivering the next day.
     await dialog.locator('.more-link').first().click();
     const details = page.locator('set-details-dialog');
+    await expect(details.locator('.details-title')).toHaveText(/^Set \d · \d+ (Mon|Tue|Wed|Thu|Fri|Sat)$/);
     await expect(details.locator('.details-item').first()).toBeVisible();
     await button(details, 'Close').click();
     await expect(details).toHaveCount(0);
@@ -600,20 +604,21 @@ test.describe('Planning: Tasks', () => {
     await expect(button(dialog, 'Next')).toBeEnabled();
     await button(dialog, 'Next').click();
 
-    // 3. Schedule: one card per visit day, three of them with a set.
+    // 3. Schedule: the sales person's line and one card per visit day, three of them with a set.
     await expect(dialog.locator('.wizard-step.active')).toContainText('Schedule');
+    await expect(dialog.locator('.schedule-plan-name')).toContainText(name);
     await expect(dialog.locator('.schedule-card')).toHaveCount(VISIT_DAYS.length);
+    await expect(dialog.locator('.schedule-card.empty .schedule-set')).toHaveText(Array(VISIT_DAYS.length - 3).fill('No visit'));
     const visits = await dialog.locator('.schedule-card:not(.empty)').evaluateAll((els) =>
       els.map((el) => ({
         day: el.querySelector('.schedule-day')!.textContent!.trim(),
         set: Number(el.querySelector('.schedule-set')!.textContent!.trim().replace('Set ', '')),
+        size: Number(el.querySelector('.schedule-shops')!.textContent!.match(/of (\d+) shops/)![1]),
       })),
     );
-    expect(visits).toHaveLength(3);
-    const total = (label: string) =>
-      dialog.locator('.summary-total', { has: page.locator('.summary-total-label', { hasText: exact(label) }) }).locator('.summary-total-value');
-    await expect(total('Sets')).toHaveText('3');
-    await expect(total('Tasks')).toHaveText(String(shops));
+    expect(visits.map((v) => v.set).sort()).toEqual([1, 2, 3]);
+    visits.forEach((v) => expect(v.size).toBe(setSizes[v.set - 1]));
+    expect(VISIT_DAYS.map(dayName)).toEqual(expect.arrayContaining(visits.map((v) => v.day)));
 
     await button(dialog, 'Assign schedule').click();
     await expectSwal(page, 'Success!');
