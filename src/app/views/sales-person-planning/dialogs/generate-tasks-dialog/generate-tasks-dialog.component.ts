@@ -42,8 +42,6 @@ export interface SetDayCell {
 export interface ShopSet {
   index: number; // 0-based; shown as "Set {index + 1}"
   shops: ScheduleShop[];
-  /** Average number of the selected companies the set's shops stock. */
-  companiesPerShop: number;
   cells: { [dayKey: string]: SetDayCell };
   bestDayKeys: string[];
 }
@@ -192,10 +190,6 @@ export class GenerateTasksDialogComponent implements OnDestroy {
     plan.retailersPerSet = this.suggestedPerSet(plan);
   }
 
-  companiesPerShop(shops: ScheduleShop[]): number {
-    return shops.length ? shops.reduce((total, shop) => total + this.companyCount(shop), 0) / shops.length : 0;
-  }
-
   // ------------------------------------------------------------------------------------------- step 2: pick days
   isBest(set: ShopSet, day: VisitDay): boolean {
     return set.bestDayKeys.includes(day.key);
@@ -300,12 +294,13 @@ export class GenerateTasksDialogComponent implements OnDestroy {
     });
   }
 
-  openShops(event: Event, plan: SalesPersonPlan, set: ShopSet) {
+  /** The set's retailers with the selected companies each one stocks ("N shops" in step 2, "Set N" in step 3). */
+  openShops(event: Event, plan: SalesPersonPlan, set: ShopSet, day?: VisitDay) {
     event.preventDefault();
     event.stopPropagation();
     this.openDetails({
-      title: `Set ${set.index + 1} · ${set.shops.length} shops`,
-      subtitle: `${plan.salesPerson.name} · ${set.companiesPerShop.toFixed(1)} companies per shop`,
+      title: day ? `Set ${set.index + 1} · ${this.dayName(day.date)}` : `Set ${set.index + 1}`,
+      subtitle: `${plan.salesPerson.name} · ${set.shops.length} shops`,
       items: this.byCompanyCount(set.shops).map((shop) => {
         const count = this.companyCount(shop);
         return {
@@ -441,7 +436,6 @@ export class GenerateTasksDialogComponent implements OnDestroy {
     return {
       index,
       shops,
-      companiesPerShop: this.companiesPerShop(shops),
       cells,
       bestDayKeys: best > 0 ? this.visitDays.filter((day) => cells[day.key].coveredShops === best).map((day) => day.key) : [],
     };

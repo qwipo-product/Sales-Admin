@@ -174,7 +174,7 @@
         <div class="schedule-card" *ngFor="let row of scheduleRows(plan)" [class.empty]="!row.set">
           <div class="schedule-day">{{ row.day.date | date: 'd EEE' }}</div>
           <ng-container *ngIf="row.set && row.cell; else noVisit">
-            <div class="schedule-set">Set {{ row.set.index + 1 }}</div>
+            <a href="" class="schedule-set schedule-set-link" (click)="openShops($event, plan, row.set, row.day)">Set {{ row.set.index + 1 }}</a>
             <div class="schedule-shops">{{ row.cell.coveredShops }} of {{ row.set.shops.length }} shops</div>
           </ng-container>
           <ng-template #noVisit>

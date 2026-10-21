@@ -8,11 +8,11 @@ Files: `src/app/views/sales-person-planning/sales-person-tasks/*`, `src/styles/p
 
 | | Production | Now |
 |---|---|---|
-| Sales persons | "Sales Person List" table under the filters, with a checkbox and an editable Tasks Count per row | **Sales Person** drop-down at the top, **one sales person at a time** (single select). Each option is a card: name, area, customer count and tasks per day. The table is gone |
-| Other filters | Always enabled | Disabled until a sales person is selected |
+| Sales persons | "Sales Person List" table under the filters, with a checkbox and an editable Tasks Count per row | **Sales Person** drop-down at the top, **one sales person at a time** (single select). Each option is a card: name, area and customer count. The table is gone |
+| Other filters | Always shown | Shown **one after another**: From / To date once a sales person is picked, then Customer Status, Business Status, Business Type and Customer Order Status, each once the field before it has a value. Clearing a field hides the ones after it (their values are kept) |
 | Dates | One "Select Date" picker that adds dates as chips | **Select From Date** and **Select To Date**. Both start at today; To can't be before From, and changing From to a later day clears To. The number of days shows under To |
-| Company | – | **Company** drop-down below the other filters: "Select all" row, then one option per company with a colour dot and the share of the selected sales person's shops that stock it ("81% of shops") |
-| Button | "Preview", below the table, always enabled; missing filters gave warnings | **Generate**, right below the filters. Disabled until every filter has a value. Opens the Generate Tasks dialog below |
+| Company | – | **Company** drop-down, shown after Customer Order Status. A "Loading companies…" placeholder stands in for it while the shares load (they're reloaded whenever a filter above changes). "Select all" row, then one option per company with the share of the sales person's shops **matching the filters above** that stock it ("81% of shops") |
+| Button | "Preview", below the table, always enabled; missing filters gave warnings | **Generate**, right below the filters, shown only once every filter (including Company) has a value. Opens the Generate Tasks dialog below |
 
 ## Planning → Tasks: "Generate Tasks" dialog (replaces "View Tasks Preview")
 
@@ -39,7 +39,7 @@ The dialog plans the one selected sales person.
    - "N shops" under each set opens the set's shop list, most companies first.
    - **Auto-pick days** gives every set its own day so that the most shops get a next-day delivery; ties go to the most company deliveries. The result is optimal (checked against brute force). **Clear** removes the picks.
    - Next is enabled once every set has a day.
-3. **Schedule**: the sales person's name, then one card per visit day ("22 Thu · Set 1 · 27 of 29 shops").
+3. **Schedule**: the sales person's name, then one card per visit day ("22 Thu · Set 1 · 27 of 29 shops"). "Set N" is a link: it opens that set's retailers, each with the selected companies it stocks.
    - When the range is longer than a week, the weekly schedule repeats ("Also 29 Oct").
    - **Assign schedule** queues CreateTasks. The tasks then appear on the **Tasks** page (Task Report), one row per sales person per date.
 
@@ -52,9 +52,9 @@ Going back to Sets and changing the numbers rebuilds the sets and clears the pic
 The sample-data backend (`src/app/mock`) already implements all of these. The core API needs:
 
 1. **New endpoint** `POST {coreUrl}/customer/company_share_by_salesperson` (Company drop-down)
-   - Body: `{ "salespersonIds": ["…"] }`
+   - Body: `{ "salespersonIds": ["…"], "isActive", "businessStatus", "businessType", "customerOrderStatus" }` (the same filters as count_by_salesperson)
    - Response: `{ "success": true, "data": [{ "company_id", "company_name", "shop_count", "total_shops", "shop_percentage" }] }`
-   - `shop_percentage` is 0–100: the share of the sales person's shops that stock the company. (The Tasks tab sends one id; the endpoint takes a list.)
+   - `shop_percentage` is 0–100: the share of the sales person's shops matching those filters that stock the company. (The Tasks tab sends one id; the endpoint takes a list.)
    - Without it the Company drop-down stays empty, and because Company is required, **Generate stays disabled**.
 2. **New endpoint** `POST {coreUrl}/customer/shops_for_schedule` (Generate Tasks dialog)
    - Body: the filters `{ isActive, businessStatus, businessType, salespersonIds, customerOrderStatus, companyIds }`. These are count_by_salesperson's fields plus `companyIds`: keep shops that stock at least one of those companies.
@@ -68,7 +68,7 @@ The sample-data backend (`src/app/mock`) already implements all of these. The co
 
 The Tasks tab no longer calls `count_by_salesperson`.
 
-The dot colours come from the order of the API's company list: brown, red, green, orange, purple, teal, dark brown, then more (`COMPANY_COLORS` in the Tasks component).
+The company dot colours in the Pick days grid come from the order of the API's company list: brown, red, green, orange, purple, teal, dark brown, then more (`COMPANY_COLORS` in the Tasks component). The Company drop-down has no dots.
 
 ### Sample data
 

@@ -113,15 +113,7 @@
   line-height: 14px;
 }
 
-/* Company options: colour dot, name, share of shops on the right. */
-.company-dot {
-  flex: none;
-  width: 10px;
-  height: 10px;
-  margin-right: 12px;
-  border-radius: 50%;
-}
-
+/* Company options: name, share of shops on the right. */
 .company-name {
   flex: 1 1 auto;
   color: rgba(0, 0, 0, 0.87);
@@ -135,17 +127,26 @@
   white-space: nowrap;
 }
 
+/* Stands in for the Company field while the shares load (same height as a form field). */
+.company-loader {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 56px;
+  margin-bottom: 22px;
+  padding: 0 16px;
+  border-radius: 4px 4px 0 0;
+  background-color: rgba(0, 0, 0, 0.04);
+  color: rgba(0, 0, 0, 0.6);
+  font-size: 14px;
+}
+
 .generate-row {
   display: flex;
   align-items: center;
   justify-content: flex-end;
   gap: 16px;
   margin-top: 8px;
-}
-
-.generate-hint {
-  color: rgba(0, 0, 0, 0.54);
-  font-size: 13px;
 }
 
 .ft-16 {

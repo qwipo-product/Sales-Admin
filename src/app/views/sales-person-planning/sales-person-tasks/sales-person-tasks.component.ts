@@ -35,23 +35,13 @@ type SelectAllState = 'checked' | 'indeterminate' | 'unchecked';
 
 const DEFAULT_TASKS_PER_DAY = 35;
 
-/** Dot colours of the Company options, in the order the API lists the companies. */
+/** Company dot colours (Generate Tasks dialog), in the order the API lists the companies. */
 const COMPANY_COLORS = ['#a0522d', '#e53935', '#43a047', '#fb8c00', '#8e24aa', '#00897b', '#6d4c41', '#1e88e5', '#d81b60', '#546e7a'];
-
-/** Filters that stay disabled until at least one sales person is selected. */
-const DEPENDENT_CONTROLS = [
-  'fromDate',
-  'toDate',
-  'customerStatusSelectRef',
-  'businessStatusSelectRef',
-  'businessTypeSelectRef',
-  'customerOrderStatusRef',
-  'companyIds',
-];
 
 /**
  * "Tasks" tab (selector `sales-person-tasks`, minified `Ry`).
- * Pick sales persons (only those with an area), a task date range, customer filters and companies, then
+ * The filters appear one after another: sales person (only those with an area) -> From / To date -> customer status
+ * -> business status -> business type -> customer order status -> companies (loaded for those filters), then
  * "Generate" -> shops_for_schedule -> Generate Tasks dialog (sets, a day per set, schedule) -> "Assign schedule"
  * queues a CreateTasks message.
  * (The original picked dates one by one, chose sales persons and tasks/day in a table, had no Company filter, and
@@ -79,7 +69,9 @@ export class SalesPersonTasksComponent implements OnInit, OnDestroy {
   permissionObj: PagePermission;
   permissionSubscription: Subscription;
   private destroy$ = new Subject<void>();
-  private companyShare$ = new Subject<string[]>();
+  private companyShare$ = new Subject<any>();
+  /** Filters the loaded company shares belong to ('' = none loaded for the current filters). */
+  private companiesKey = '';
   private loader: ScopedLoader;
 
   constructor(
@@ -103,10 +95,7 @@ export class SalesPersonTasksComponent implements OnInit, OnDestroy {
     this.companyShare$
       .pipe(
         debounceTime(250),
-        switchMap((ids) => {
-          this.companiesLoading = true;
-          return from(this.salesPersonService.getCompanyShopShare(ids)).pipe(catchError(() => of(undefined)));
-        }),
+        switchMap((body) => from(this.salesPersonService.getCompanyShopShare(body)).pipe(catchError(() => of(undefined)))),
         takeUntil(this.destroy$)
       )
       .subscribe((shares: CompanyShopShare[] | undefined) => this.setCompanies(shares));
@@ -131,18 +120,15 @@ export class SalesPersonTasksComponent implements OnInit, OnDestroy {
   initializeForm() {
     this.form = this.fb.group({
       salesPersonId: new FormControl<string | null>(null),
-      fromDate: new FormControl<Date | null>({ value: null, disabled: true }),
-      toDate: new FormControl<Date | null>({ value: null, disabled: true }),
-      customerStatusSelectRef: new FormControl({ value: null, disabled: true }),
-      businessStatusSelectRef: new FormControl({ value: null, disabled: true }),
-      businessTypeSelectRef: new FormControl({ value: null, disabled: true }),
-      customerOrderStatusRef: new FormControl({ value: null, disabled: true }),
-      companyIds: new FormControl<string[]>({ value: [], disabled: true }),
+      fromDate: new FormControl<Date | null>(null),
+      toDate: new FormControl<Date | null>(null),
+      customerStatusSelectRef: new FormControl(null),
+      businessStatusSelectRef: new FormControl(null),
+      businessTypeSelectRef: new FormControl(null),
+      customerOrderStatusRef: new FormControl(null),
+      companyIds: new FormControl<string[]>([]),
     });
-    this.form
-      .get('salesPersonId')
-      .valueChanges.pipe(takeUntil(this.destroy$))
-      .subscribe((id: string | null) => this.onSalesPersonChange(id));
+    this.form.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(() => this.refreshCompanies());
   }
 
   /** Only sales persons that already have an area (cluster) assigned. */
@@ -176,19 +162,30 @@ export class SalesPersonTasksComponent implements OnInit, OnDestroy {
     return (this.salesPersonList || []).find((sp) => sp.id === this.selectedSalesPersonId);
   }
 
-  /** The other filters unlock once a sales person is selected; the Company shares follow the selection. */
-  onSalesPersonChange(id: string | null) {
-    DEPENDENT_CONTROLS.forEach((name) => {
-      const control = this.form.get(name);
-      if (id) {
-        control.enable({ emitEvent: false });
-      } else {
-        control.disable({ emitEvent: false });
-      }
-    });
-    if (id) {
-      this.companyShare$.next([id]);
-    }
+  // ------------------------------------------------------------------------------------------- one field after another
+  get showDates(): boolean {
+    return !!this.selectedSalesPerson;
+  }
+
+  get showCustomerStatus(): boolean {
+    return this.showDates && this.taskDates.length > 0;
+  }
+
+  get showBusinessStatus(): boolean {
+    return this.showCustomerStatus && this.selectedCustomerStatus.length > 0;
+  }
+
+  get showBusinessType(): boolean {
+    return this.showBusinessStatus && this.selectedBusinessStatus.length > 0;
+  }
+
+  get showCustomerOrderStatus(): boolean {
+    return this.showBusinessType && this.selectedBusinessTypes.length > 0;
+  }
+
+  /** The Company field (or its loader) appears once a customer order status is picked. */
+  get showCompanies(): boolean {
+    return this.showCustomerOrderStatus && this.selectedCustomerOrderStatus.length > 0;
   }
 
   // ------------------------------------------------------------------------------------------- dates
@@ -270,7 +267,37 @@ export class SalesPersonTasksComponent implements OnInit, OnDestroy {
     this.form.get('companyIds').setValue(all ? [] : this.companies.map((c) => c.id));
   }
 
-  /** New shop shares for the selected sales persons; companies that are no longer offered are deselected. */
+  /**
+   * Loads the company shares for the sales person's shops that match the filters above the Company field, whenever
+   * those filters change while it is shown. The field shows a loader until they arrive.
+   */
+  private refreshCompanies() {
+    if (!this.showCompanies) {
+      this.companiesKey = '';
+      return;
+    }
+    const body = this.customerFilterBody();
+    const key = JSON.stringify(body);
+    if (key !== this.companiesKey) {
+      this.companiesKey = key;
+      this.companiesLoading = true;
+      this.companyShare$.next(body);
+    }
+  }
+
+  /** count_by_salesperson-style filter body for the selected sales person (companies not included). */
+  private customerFilterBody() {
+    return {
+      isActive: this.selectedCustomerStatus,
+      businessStatus: this.selectedBusinessStatus,
+      // business type names ('Kirana', ...) -> numeric BusinessType enum values (1, ...)
+      businessType: this.selectedBusinessTypes.map((type) => (BusinessType as any)[type]),
+      salespersonIds: [this.selectedSalesPersonId],
+      customerOrderStatus: this.selectedCustomerOrderStatus,
+    };
+  }
+
+  /** New shop shares for the current filters; companies that are no longer offered are deselected. */
   setCompanies(shares: CompanyShopShare[] | undefined) {
     this.companiesLoading = false;
     this.companiesError = !Array.isArray(shares);
@@ -308,7 +335,7 @@ export class SalesPersonTasksComponent implements OnInit, OnDestroy {
   }
 
   // ------------------------------------------------------------------------------------------- generate
-  /** "Generate" is enabled once every filter has a value. */
+  /** "Generate" shows once every filter has a value. */
   get canGenerate(): boolean {
     return (
       !!this.form &&
@@ -318,6 +345,7 @@ export class SalesPersonTasksComponent implements OnInit, OnDestroy {
       this.selectedBusinessStatus.length > 0 &&
       this.selectedBusinessTypes.length > 0 &&
       this.selectedCustomerOrderStatus.length > 0 &&
+      !this.companiesLoading &&
       this.selectedCompanyIds.length > 0
     );
   }
@@ -328,24 +356,17 @@ export class SalesPersonTasksComponent implements OnInit, OnDestroy {
       showWarningAlert('Please select all the filters');
       return;
     }
+    const body = { ...this.customerFilterBody(), companyIds: this.selectedCompanyIds };
     const filters: TaskFilters = {
-      // business type names ('Kirana', ...) -> numeric BusinessType enum values (1, ...)
-      businessTypes: this.selectedBusinessTypes.map((type) => (BusinessType as any)[type]),
-      customerStatus: this.selectedCustomerStatus,
-      businessStatus: this.selectedBusinessStatus,
-      customerOrderStatus: this.selectedCustomerOrderStatus,
-      companyIds: this.selectedCompanyIds,
+      businessTypes: body.businessType,
+      customerStatus: body.isActive,
+      businessStatus: body.businessStatus,
+      customerOrderStatus: body.customerOrderStatus,
+      companyIds: body.companyIds,
     };
     this.loader.open();
     try {
-      const shops: ScheduleShop[] = await this.salesPersonService.getShopsForSchedule({
-        isActive: filters.customerStatus,
-        businessStatus: filters.businessStatus,
-        businessType: filters.businessTypes,
-        salespersonIds: [this.selectedSalesPersonId],
-        customerOrderStatus: filters.customerOrderStatus,
-        companyIds: filters.companyIds,
-      });
+      const shops: ScheduleShop[] = await this.salesPersonService.getShopsForSchedule(body);
       if (!Array.isArray(shops)) {
         throw new Error('shops_for_schedule returned no data');
       }

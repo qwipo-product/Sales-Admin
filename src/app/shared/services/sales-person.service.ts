@@ -357,12 +357,13 @@ export class SalesPersonService {
   }
 
   /**
-   * POST {coreUrl}/customer/company_share_by_salesperson body = { salespersonIds } -> data = CompanyShopShare[]
-   * (Tasks tab "Company" filter). Not part of the original app: the core API needs this endpoint; the mock backend has it.
+   * POST {coreUrl}/customer/company_share_by_salesperson body = { salespersonIds, isActive, businessStatus, businessType,
+   * customerOrderStatus } -> data = CompanyShopShare[] for the shops matching those filters (Tasks tab "Company" filter).
+   * Not part of the original app: the core API needs this endpoint; the mock backend has it.
    */
-  async getCompanyShopShare(salespersonIds: string[]) {
+  async getCompanyShopShare(body: any) {
     const url = `${this.configService.getConfig().coreUrl}/customer/company_share_by_salesperson`;
-    const request$ = this.http.post<any>(url, { salespersonIds });
+    const request$ = this.http.post<any>(url, body);
     return (await lastValueFrom(request$))?.data;
   }
 

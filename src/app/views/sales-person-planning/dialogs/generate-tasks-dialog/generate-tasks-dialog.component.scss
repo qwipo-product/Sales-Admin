@@ -470,6 +470,12 @@ $star: #f5a623;
   font-size: 15px;
 }
 
+.schedule-set-link {
+  display: inline-block;
+  color: $primary;
+  text-decoration: underline;
+}
+
 .schedule-shops {
   color: $muted;
   font-size: 14px;

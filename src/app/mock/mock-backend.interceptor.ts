@@ -71,7 +71,8 @@ export class MockBackendInterceptor implements HttpInterceptor {
         return this.ok({ success: true, data: this.shopsForSchedule(body) }, 500);
       }
       if (url === `${core}/customer/company_share_by_salesperson`) {
-        return this.ok({ success: true, data: this.companyShareBySalesPerson(body) }, 300);
+        // Slow on purpose (2 s): the Company field shows its loader while the shares load.
+        return this.ok({ success: true, data: this.companyShareBySalesPerson(body) }, 2000);
       }
       if (url === `${core}/customer` && request.method === 'POST') {
         return this.ok({ success: true, data: [this.createCoreCustomer(body)] });
@@ -202,10 +203,12 @@ export class MockBackendInterceptor implements HttpInterceptor {
     return ids.map((id) => ({ salesperson_id: id, customer_count: customers.filter((c) => c.salesPersonId === id).length }));
   }
 
-  /** Share of the given sales persons' shops that stock each company (all of their shops when no ids are given). */
+  /** Share of the given sales persons' shops matching the filters that stock each company (all assigned shops when no ids are given). */
   private companyShareBySalesPerson(body: any) {
     const ids: string[] = body.salespersonIds || [];
-    const shops = this.db.customers().filter((c) => (ids.length ? ids.includes(c.salesPersonId) : !!c.salesPersonId));
+    const shops = this.filterCustomers({ ...body, companyIds: [] }, this.db.customers()).filter((c) =>
+      ids.length ? ids.includes(c.salesPersonId) : !!c.salesPersonId,
+    );
     return MOCK_COMPANIES.map((company) => {
       const shopCount = shops.filter((c) => (c.companies || []).includes(company.id)).length;
       return {

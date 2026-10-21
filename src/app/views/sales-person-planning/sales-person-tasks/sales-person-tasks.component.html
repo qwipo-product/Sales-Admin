@@ -24,10 +24,6 @@
                           <span class="sp-stat-value">{{ sp.customerCount || 0 }}</span>
                           <span class="sp-stat-label">Customers</span>
                         </div>
-                        <div class="sp-stat">
-                          <span class="sp-stat-value">{{ sp.tasksCount }}</span>
-                          <span class="sp-stat-label">Tasks / Day</span>
-                        </div>
                       </div>
                     </div>
                   </mat-option>
@@ -39,7 +35,8 @@
               </mat-form-field>
             </div>
 
-            <div class="col-md-6">
+            <!-- The other fields appear one after another as each one gets a value. -->
+            <div class="col-md-6" *ngIf="showDates">
               <mat-form-field class="full-width">
                 <mat-label>Select From Date</mat-label>
                 <input
@@ -54,7 +51,7 @@
               </mat-form-field>
             </div>
 
-            <div class="col-md-6">
+            <div class="col-md-6" *ngIf="showDates">
               <mat-form-field class="full-width">
                 <mat-label>Select To Date</mat-label>
                 <input matInput formControlName="toDate" [matDatepicker]="toDatepicker" [min]="toDateMin" />
@@ -64,7 +61,7 @@
               </mat-form-field>
             </div>
 
-            <div class="col-md-6">
+            <div class="col-md-6" *ngIf="showCustomerStatus">
               <mat-form-field class="full-width">
                 <mat-label>Customer Status</mat-label>
                 <mat-select formControlName="customerStatusSelectRef" multiple>
@@ -73,7 +70,7 @@
               </mat-form-field>
             </div>
 
-            <div class="col-md-6">
+            <div class="col-md-6" *ngIf="showBusinessStatus">
               <mat-form-field class="full-width">
                 <mat-label>Business Status</mat-label>
                 <mat-select formControlName="businessStatusSelectRef" multiple (selectionChange)="getSelectedBusinessStatus()">
@@ -89,7 +86,7 @@
               </mat-form-field>
             </div>
 
-            <div class="col-md-6">
+            <div class="col-md-6" *ngIf="showBusinessType">
               <mat-form-field class="full-width">
                 <mat-label>Business Type</mat-label>
                 <mat-select formControlName="businessTypeSelectRef" multiple (selectionChange)="getSelectedBusinessTypes()">
@@ -105,7 +102,7 @@
               </mat-form-field>
             </div>
 
-            <div class="col-md-6">
+            <div class="col-md-6" *ngIf="showCustomerOrderStatus">
               <mat-form-field class="full-width">
                 <mat-label>Customer Order Status</mat-label>
                 <mat-select formControlName="customerOrderStatusRef" multiple>
@@ -114,8 +111,12 @@
               </mat-form-field>
             </div>
 
-            <div class="col-md-6">
-              <mat-form-field class="full-width" appearance="fill">
+            <div class="col-md-6" *ngIf="showCompanies">
+              <div class="company-loader" *ngIf="companiesLoading">
+                <mat-progress-spinner mode="indeterminate" diameter="22"></mat-progress-spinner>
+                <span>Loading companies&hellip;</span>
+              </div>
+              <mat-form-field class="full-width" appearance="fill" *ngIf="!companiesLoading">
                 <mat-label>Company</mat-label>
                 <mat-select formControlName="companyIds" multiple panelClass="company-select-panel">
                   <mat-select-trigger>{{ companyTriggerText }}</mat-select-trigger>
@@ -125,19 +126,16 @@
                   </div>
                   <mat-divider *ngIf="companies.length"></mat-divider>
                   <mat-option *ngFor="let company of companies" [value]="company.id" class="company-option">
-                    <span class="company-dot" [style.background-color]="company.color"></span>
                     <span class="company-name">{{ company.name }}</span>
                     <span class="company-share">{{ company.shopPercentage }}% of shops</span>
                   </mat-option>
                 </mat-select>
-                <mat-hint *ngIf="companiesLoading">Updating shop share&hellip;</mat-hint>
-                <mat-hint *ngIf="!companiesLoading && companiesError" class="text-danger">Companies couldn't be loaded</mat-hint>
+                <mat-hint *ngIf="companiesError" class="text-danger">Companies couldn't be loaded</mat-hint>
               </mat-form-field>
             </div>
 
-            <div class="col-12 generate-row">
-              <span class="generate-hint" *ngIf="!canGenerate">Select all the filters to generate tasks</span>
-              <button type="button" mat-raised-button color="primary" [disabled]="!canGenerate" (click)="generateTasks()">Generate</button>
+            <div class="col-12 generate-row" *ngIf="canGenerate">
+              <button type="button" mat-raised-button color="primary" (click)="generateTasks()">Generate</button>
             </div>
           </div>
         </form>
