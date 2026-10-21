@@ -434,7 +434,6 @@ test.describe('Planning: Tasks', () => {
     const name = (await option.locator('.sp-name').innerText()).trim();
     const area = (await option.locator('.sp-area span').innerText()).trim();
     const customers = (await option.locator('.sp-stat', { hasText: 'Customers' }).locator('.sp-stat-value').innerText()).trim();
-    await expect(option.locator('.sp-stat', { hasText: 'Tasks / Day' })).toContainText('35');
     await option.click();
     await expect(panel).toHaveCount(0);
     return { name, area, customers };
@@ -475,7 +474,6 @@ test.describe('Planning: Tasks', () => {
   const VISIT_DAYS = RANGE.filter((offset) => !dayName(offset).endsWith('Sun'));
 
   async function openGenerate(page: Page): Promise<Locator> {
-    await expect(button(tasksTab(page), 'Generate')).toBeEnabled();
     await button(tasksTab(page), 'Generate').click();
     await waitForLoader(page);
     const dialog = page.locator('generate-tasks-dialog');
@@ -501,31 +499,65 @@ test.describe('Planning: Tasks', () => {
     await waitForLoader(page);
   });
 
-  test('the filters unlock after a sales person is picked; Generate waits for all of them', async ({ page }) => {
-    const generate = button(tasksTab(page), 'Generate');
-    await expect(generate).toBeDisabled();
-    await expect(tasksTab(page).getByText('Select all the filters to generate tasks')).toBeVisible();
-    await expect(fieldByLabel(tasksTab(page), 'Business Status').locator('mat-select')).toHaveAttribute('aria-disabled', 'true');
-    await expect(fieldByLabel(tasksTab(page), 'Select From Date').locator('input')).toBeDisabled();
+  test('the filters appear one after another; Generate shows once all of them have a value', async ({ page }) => {
+    const tasks = tasksTab(page);
+    const field = (label: string) => fieldByLabel(tasks, label);
+    const generate = button(tasks, 'Generate');
+    const later = ['Select From Date', 'Select To Date', 'Customer Status', 'Business Status', 'Business Type', 'Customer Order Status', 'Company'];
+    for (const label of later) await expect(field(label)).toHaveCount(0);
+    await expect(generate).toHaveCount(0);
 
-    const salesPerson = fieldByLabel(tasksTab(page), 'Sales Person');
+    // Sales person (single select: picking another replaces the first).
+    const salesPerson = field('Sales Person');
     await expect(salesPerson.locator('mat-hint')).toHaveText('Select a sales person to choose the other filters');
     const first = await choosePerson(page, 0);
     await expect(salesPerson.locator('.mat-mdc-select-value')).toHaveText(first.name);
     await expect(salesPerson.locator('mat-hint')).toHaveText(`${first.area} · ${first.customers} customers`);
-
-    // One sales person per generation: picking another replaces the first.
     const second = await choosePerson(page, 1);
     await expect(salesPerson.locator('.mat-mdc-select-value')).toHaveText(second.name);
     await expect(salesPerson.locator('mat-hint')).toHaveText(`${second.area} · ${second.customers} customers`);
-    await expect(fieldByLabel(tasksTab(page), 'Business Status').locator('mat-select')).toHaveAttribute('aria-disabled', 'false');
-    await expect(fieldByLabel(tasksTab(page), 'Select From Date').locator('input')).toBeEnabled();
-    await expect(generate).toBeDisabled();
 
-    // A day before today can't be picked.
-    await fieldByLabel(tasksTab(page), 'Select From Date').locator('mat-datepicker-toggle button').click();
+    // Dates: a day before today can't be picked.
+    await expect(field('Select From Date')).toBeVisible();
+    await expect(field('Select To Date')).toBeVisible();
+    await expect(field('Customer Status')).toHaveCount(0);
+    await field('Select From Date').locator('mat-datepicker-toggle button').click();
     await expect(page.locator(`.mat-calendar-body-cell[aria-label="${day(-1).label}"]`)).toHaveAttribute('aria-disabled', 'true');
     await page.keyboard.press('Escape');
+    await pickDate(page, field('Select From Date'), RANGE[0]);
+    await expect(field('Customer Status')).toHaveCount(0);
+    await pickDate(page, field('Select To Date'), RANGE[RANGE.length - 1]);
+
+    // Each customer filter unlocks the next one.
+    await selectOptions(page, field('Customer Status'), ['Active', 'InActive'], { multiple: true });
+    await expect(field('Business Type')).toHaveCount(0);
+    await selectAllIn(page, 'Business Status', 'mat-checkbox');
+    await expect(field('Customer Order Status')).toHaveCount(0);
+    await selectAllIn(page, 'Business Type', 'mat-checkbox');
+    await expect(tasks.locator('.company-loader')).toHaveCount(0);
+    await selectOptions(page, field('Customer Order Status'), ORDER_STATUSES, { multiple: true });
+
+    // The company shares load for these filters, then the Company field appears.
+    await expect(tasks.locator('.company-loader')).toContainText('Loading companies');
+    await expect(field('Company')).toBeVisible();
+    await expect(tasks.locator('.company-loader')).toHaveCount(0);
+    await expect(generate).toHaveCount(0);
+    const panel = await openSelect(page, field('Company'));
+    await expect(panel.locator('mat-option.company-option').first()).toContainText(/\d+% of shops/);
+    await expect(panel.locator('.company-dot')).toHaveCount(0);
+    await page.keyboard.press('Escape');
+    await selectAllIn(page, 'Company', '.select-all-row');
+    await expect(generate).toBeVisible();
+
+    // Clearing a filter hides the later ones; their values come back with it (the companies reload).
+    await selectAllIn(page, 'Business Type', 'mat-checkbox');
+    await expect(field('Customer Order Status')).toHaveCount(0);
+    await expect(field('Company')).toHaveCount(0);
+    await expect(generate).toHaveCount(0);
+    await selectAllIn(page, 'Business Type', 'mat-checkbox');
+    await expect(field('Customer Order Status')).toBeVisible();
+    await expect(field('Company')).toBeVisible();
+    await expect(generate).toBeVisible();
   });
 
   test('Generate step 1 (Sets): shop maths, shops left out and a suggested set size', async ({ page }) => {
@@ -594,6 +626,16 @@ test.describe('Planning: Tasks', () => {
     await expect(button(dialog, 'Next')).toBeDisabled();
     await expect(dialog.locator('.wizard-footer-hint')).toHaveText('Pick a day for every set (0 of 3 picked)');
 
+    // "N shops" lists the set's retailers with their companies.
+    await dialog.locator('.set-shops-link').first().click();
+    const shopsPopup = page.locator('set-details-dialog');
+    await expect(shopsPopup.locator('.details-title')).toHaveText('Set 1');
+    await expect(shopsPopup.locator('.details-subtitle')).toHaveText(`${name} · ${setSizes[0]} shops`);
+    await expect(shopsPopup.locator('.details-item')).toHaveCount(setSizes[0]);
+    await expect(shopsPopup.locator('.details-value').first()).toHaveText(/^\d+ compan(y|ies)$/);
+    await button(shopsPopup, 'Close').click();
+    await expect(shopsPopup).toHaveCount(0);
+
     // A click picks a day; a day holds one set, so picking it for another set moves it.
     await cells.nth(0).click();
     await expect(cells.nth(0)).toHaveClass(/\bpicked\b/);
@@ -638,6 +680,15 @@ test.describe('Planning: Tasks', () => {
     expect(visits.map((v) => v.set).sort()).toEqual([1, 2, 3]);
     visits.forEach((v) => expect(v.size).toBe(setSizes[v.set - 1]));
     expect(VISIT_DAYS.map(dayName)).toEqual(expect.arrayContaining(visits.map((v) => v.day)));
+
+    // "Set N" opens that day's retailers.
+    await dialog.locator('a.schedule-set-link').first().click();
+    const setPopup = page.locator('set-details-dialog');
+    await expect(setPopup.locator('.details-title')).toHaveText(`Set ${visits[0].set} · ${visits[0].day}`);
+    await expect(setPopup.locator('.details-subtitle')).toHaveText(`${name} · ${visits[0].size} shops`);
+    await expect(setPopup.locator('.details-item')).toHaveCount(visits[0].size);
+    await button(setPopup, 'Close').click();
+    await expect(setPopup).toHaveCount(0);
 
     await button(dialog, 'Assign schedule').click();
     await expectSwal(page, 'Success!');

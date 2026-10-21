@@ -44,9 +44,36 @@ export { expect };
 
 // ------------------------------------------------------------------------------------------------- session
 
+/**
+ * Loads a URL (or reloads, with `null`) and waits until Angular has replaced the startup spinner that index.html puts
+ * in <app-root>. Under parallel load Chromium now and then fails to parse a dev-server bundle (a random SyntaxError
+ * although the bytes are intact), and the app never starts; that load is retried once, with a warning in the output.
+ * An app that really fails to start fails both attempts.
+ */
+export async function gotoApp(page: Page, url: string | null) {
+  for (let attempt = 1; ; attempt++) {
+    const errors: string[] = [];
+    const onError = (error: Error) => errors.push(error.message);
+    page.on('pageerror', onError);
+    await (url === null ? page.reload() : page.goto(url));
+    const started = await page
+      .locator('app-root > .app-loader')
+      .waitFor({ state: 'detached', timeout: 20_000 })
+      .then(
+        () => true,
+        () => false,
+      );
+    page.off('pageerror', onError);
+    if (started) return;
+    if (attempt === 2) throw new Error(`The app did not start at ${url ?? page.url()}: ${errors.join('; ') || 'no page error'}`);
+    console.warn(`[boot] The app did not start at ${url ?? page.url()} (${errors.join('; ') || 'no page error'}); reloading once.`);
+    url = null;
+  }
+}
+
 /** Signs in through the sample-data sign-in card and waits for the home page. */
 export async function signIn(page: Page) {
-  await page.goto('/sessions/signin');
+  await gotoApp(page, '/sessions/signin');
   await button(page, 'Sign in').click();
   await expect(page).toHaveURL(/\/home$/);
   await expect(page.getByText('Home Page')).toBeVisible();
@@ -94,14 +121,14 @@ export async function waitForSampleDbSaved(page: Page) {
 /** Opens an admin page (after the current page's changes are saved) and waits for the "Please wait" loader. */
 export async function open(page: Page, path: string) {
   await waitForSampleDbSaved(page);
-  await page.goto(path);
+  await gotoApp(page, path);
   await waitForLoader(page);
 }
 
 /** Reloads the page once the sample database has saved its changes. */
 export async function reload(page: Page) {
   await waitForSampleDbSaved(page);
-  await page.reload();
+  await gotoApp(page, null);
   await waitForLoader(page);
 }
 

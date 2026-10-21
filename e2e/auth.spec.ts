@@ -1,17 +1,17 @@
-import { button, content, expect, heading, signIn, tab, test, waitForLoader } from './fixtures';
+import { button, content, expect, gotoApp, heading, signIn, tab, test, waitForLoader } from './fixtures';
 
 const SIGNIN_URL = /\/sessions\/signin(\?.*)?$/;
 
 test.describe('Sign-in, sign-out and the route guard', () => {
   test('signed-out users are sent to the sign-in page', async ({ page }) => {
-    await page.goto('/salesperson-list');
+    await gotoApp(page, '/salesperson-list');
     await expect(page).toHaveURL(SIGNIN_URL);
     await expect(page.getByText('Sign in to your account')).toBeVisible();
     await expect(heading(page, 'Sales Person List')).toHaveCount(0);
   });
 
   test('the root URL opens the sign-in page', async ({ page }) => {
-    await page.goto('/');
+    await gotoApp(page, '/');
     await expect(page).toHaveURL(SIGNIN_URL);
     await expect(button(page, 'Sign in')).toBeEnabled();
   });
@@ -20,12 +20,12 @@ test.describe('Sign-in, sign-out and the route guard', () => {
     await signIn(page);
     await expect(page.locator('.app-logo-text')).toHaveText('Sales Admin');
 
-    await page.reload();
+    await gotoApp(page, null);
     await expect(page).toHaveURL(/\/home$/);
     await expect(page.getByText('Home Page')).toBeVisible();
 
     // Signed-in users who open the sign-in page go straight back to Home.
-    await page.goto('/sessions/signin');
+    await gotoApp(page, '/sessions/signin');
     await expect(page).toHaveURL(/\/home$/);
   });
 
@@ -52,7 +52,7 @@ test.describe('Sign-in, sign-out and the route guard', () => {
 
   test('SIGNOUT ends the session and the guard blocks admin pages again', async ({ page }) => {
     await signIn(page);
-    await page.goto('/attendance-report');
+    await gotoApp(page, '/attendance-report');
     await expect(tab(page, 'Approval Request')).toBeVisible();
 
     await button(page.locator('mat-toolbar'), 'power_settings_new').click();
@@ -66,14 +66,14 @@ test.describe('Sign-in, sign-out and the route guard', () => {
     expect(storage).not.toContain('userDetails');
     expect(storage).not.toContain('uid');
 
-    await page.goto('/attendance-report');
+    await gotoApp(page, '/attendance-report');
     await expect(page).toHaveURL(SIGNIN_URL);
     await expect(tab(page, 'Approval Request')).toHaveCount(0);
 
     // A reload does not bring the old session back (production kept it).
-    await page.reload();
+    await gotoApp(page, null);
     await expect(page.getByText('Sign in to your account')).toBeVisible();
-    await page.goto('/home');
+    await gotoApp(page, '/home');
     await expect(page).toHaveURL(SIGNIN_URL);
     await expect(page.getByText('Home Page')).toHaveCount(0);
   });
