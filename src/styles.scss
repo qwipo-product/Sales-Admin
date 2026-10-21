@@ -1,0 +1,24 @@
+/*
+ * Global stylesheet entry (src/styles.scss) – reconstructed. See STYLES.md for the full analysis.
+ *
+ * The shipped styles bundle is the concatenation of several angular.json "styles" entries followed by the compiled
+ * styles.scss (which begins with `@charset` + Tailwind and ends with Tailwind's variant rules). Recommended
+ * angular.json "styles" (in this order) to reproduce the bundle:
+ *   "src/styles/third-party/perfect-scrollbar.css"   (or node_modules/perfect-scrollbar/css/perfect-scrollbar.css)
+ *   "src/styles/third-party/quill.snow.css"          (or node_modules/quill/dist/quill.snow.css)
+ *   "src/styles/third-party/hopscotch.css"           (or node_modules/hopscotch/dist/css/hopscotch.css + sprite img)
+ *   "src/styles/third-party/highlightjs-github.css"  (or node_modules/highlight.js/styles/github.css)
+ *   "src/styles.scss"
+ * Order inside this file: Tailwind -> angular-calendar -> Material -> Egret/app. In the original, the Material block
+ * sat between Egret "base/layout" and Egret "components/colors/views"; moving it before all Egret rules was checked
+ * rule-by-rule and changes no cascade result (see STYLES.md "Ordering").
+ */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import 'styles/third-party/angular-calendar'; // or 'angular-calendar/css/angular-calendar.css'
+
+@import 'styles/material-theme';
+
+@import 'styles/egret-and-app';

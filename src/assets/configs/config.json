@@ -1,0 +1,10 @@
+{
+  "env": "mock",
+  "firebaseConfig": {},
+  "ssoUrl": "http://localhost:4200/sessions",
+  "cloudFunctionsUrl": "https://mock.sales-admin.local/functions",
+  "coreUrl": "https://mock.sales-admin.local/core",
+  "coreApiUrl": "https://mock.sales-admin.local/core-api",
+  "authServiceApiUrl": "https://mock.sales-admin.local/auth",
+  "messagingServiceUrl": "https://mock.sales-admin.local/messaging"
+}

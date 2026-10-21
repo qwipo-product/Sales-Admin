@@ -1,0 +1,27 @@
+<mat-toolbar class="topbar flex mat-bg-card">
+  <!-- Sidenav toggle button -->
+  <button
+    *ngIf="layoutConf.sidebarStyle !== 'compact'"
+    mat-icon-button
+    id="sidenavToggle"
+    (click)="toggleSidenav()"
+    matTooltip="Toggle Hide/Open"
+  >
+    <mat-icon>menu</mat-icon>
+  </button>
+
+  <span class="flex-grow"></span>
+
+  <!-- Top left user menu (power button) -->
+  <button mat-icon-button [matMenuTriggerFor]="accountMenu" class="">
+    <mat-icon>power_settings_new</mat-icon>
+  </button>
+
+  <mat-menu #accountMenu="matMenu">
+    <button mat-menu-item (click)="signout()">
+      <mat-icon>exit_to_app</mat-icon>
+      <!-- No language is ever set on TranslateService, so this renders the raw key "SIGNOUT" -->
+      <span>{{ 'SIGNOUT' | translate }}</span>
+    </button>
+  </mat-menu>
+</mat-toolbar>

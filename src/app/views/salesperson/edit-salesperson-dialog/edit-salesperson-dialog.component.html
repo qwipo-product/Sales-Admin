@@ -1,0 +1,36 @@
+<ng-container *ngIf="permissionObj?.view">
+  <div>
+    <div class="row m-0">
+      <div class="col text-right p-0">
+        <mat-icon class="m-3 closeicon" (click)="dialogRef.close()"> close </mat-icon>
+      </div>
+    </div>
+    <mat-card>
+      <form [formGroup]="form">
+        <div class="m-3">
+          <mat-form-field class="full-width">
+            <mat-label>Lead Name</mat-label>
+            <mat-select formControlName="leads" (selectionChange)="getSelectedLead()">
+              <mat-option *ngFor="let lead of leadList" [value]="lead"> {{ lead.name }} </mat-option>
+            </mat-select>
+          </mat-form-field>
+        </div>
+        <div class="m-3">
+          <mat-form-field class="full-width">
+            <mat-label>Sale's Manager</mat-label>
+            <mat-select formControlName="manager" (selectionChange)="getSelectedSalesManager()">
+              <mat-option *ngFor="let manager of managerList" [value]="manager"> {{ manager.name }} </mat-option>
+            </mat-select>
+          </mat-form-field>
+        </div>
+        <div class="text-center m-3">
+          <button mat-raised-button color="primary" class="mt-3" (click)="update()">Save</button>
+        </div>
+      </form>
+    </mat-card>
+  </div>
+</ng-container>
+
+<ng-container *ngIf="!permissionObj?.view">
+  <p class="text-center">You dont have permission , Please contact administrator</p>
+</ng-container>

@@ -1,0 +1,65 @@
+<div>
+  <div class="row m-0">
+    <div class="col p-0">
+      <h2 class="card-title m-3 text-violet">{{ data.title }}</h2>
+    </div>
+    <div class="col text-right p-0">
+      <button
+        mat-raised-button
+        type="button"
+        color="primary"
+        class="mr-4"
+        style="min-width: 45px !important; margin-top: 20px"
+        (click)="downloadToExcel()"
+      >
+        Download Excel
+      </button>
+      <mat-icon class="m-3 closeicon" (click)="dialogRef.close()"> close </mat-icon>
+    </div>
+  </div>
+
+  <div class="content">
+    <div>
+      <mat-card class="p-0">
+        <mat-card-content class="p-0">
+          <mat-sidenav-container fxFlex="0 1 auto">
+            <mat-sidenav-content>
+              <div class="table-container">
+                <mat-table matSort [dataSource]="interactionReport">
+                  <ng-container matColumnDef="salesPersonName">
+                    <mat-header-cell *matHeaderCellDef> Business Advisor </mat-header-cell>
+                    <mat-cell *matCellDef="let element" data-label="salesPersonName">
+                      {{ element.salesPersonName }}
+                    </mat-cell>
+                  </ng-container>
+
+                  <ng-container matColumnDef="salesPersonMobileNumber">
+                    <mat-header-cell *matHeaderCellDef> Mobile Number </mat-header-cell>
+                    <mat-cell *matCellDef="let element" data-label="salesPersonMobileNumber">
+                      {{ element.salesPersonMobileNumber }}
+                    </mat-cell>
+                  </ng-container>
+
+                  <ng-container matColumnDef="taskCount">
+                    <mat-header-cell *matHeaderCellDef> Total Count </mat-header-cell>
+                    <mat-cell *matCellDef="let element" data-label="taskCount"> {{ element.taskCount }} </mat-cell>
+                  </ng-container>
+
+                  <ng-container matColumnDef="interactionCount">
+                    <mat-header-cell *matHeaderCellDef> Total Visited Count </mat-header-cell>
+                    <mat-cell *matCellDef="let element" data-label="interactionCount">
+                      {{ element.interactionCount }}
+                    </mat-cell>
+                  </ng-container>
+
+                  <mat-header-row *matHeaderRowDef="displayedColumns1"></mat-header-row>
+                  <mat-row *matRowDef="let row; columns: displayedColumns1"></mat-row>
+                </mat-table>
+              </div>
+            </mat-sidenav-content>
+          </mat-sidenav-container>
+        </mat-card-content>
+      </mat-card>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,73 @@
+.bgm-teal {
+  background-color: #f8f8f8 !important;
+}
+
+.bmg-ligthgray {
+  background-color: #fff;
+  box-shadow: 0 5px 5px -3px rgba(0, 0, 0, 0.2), 0 8px 10px 1px rgba(0, 0, 0, 0.14), 0 3px 14px 2px rgba(0, 0, 0, 0.12);
+}
+
+.grid-container {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  grid-gap: 10px;
+}
+
+.grid-item {
+  display: flex;
+  align-items: center;
+}
+
+.close-icon {
+  height: 18px;
+  width: 34px;
+  font-size: 20px;
+}
+
+.closeicon {
+  color: #212121;
+  position: relative;
+  font-size: 20px;
+  left: 4px;
+}
+
+.dateSelectDiv {
+  border: 1.5px solid #aa85db;
+  padding: 10px 10px 15px;
+  border-radius: 10px;
+  margin-bottom: 10px;
+}
+
+.datespan {
+  background-color: #eaeaef;
+  padding: 6px;
+  border-radius: 10px;
+  margin: 2px;
+  display: inline-flex;
+}
+
+.text-violet {
+  color: #4a2981;
+}
+
+.ft-16 {
+  font-size: 16px;
+}
+
+.loader {
+  border: 8px solid #f3f3f3;
+  border-top: 8px solid #0090ef;
+  border-radius: 50%;
+  width: 60px;
+  height: 60px;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}

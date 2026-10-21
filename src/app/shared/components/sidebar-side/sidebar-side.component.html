@@ -1,0 +1,49 @@
+<div class="sidebar-panel">
+  <div id="scroll-area" [perfectScrollbar] class="navigation-hold flex flex-col">
+    <div class="sidebar-hold">
+      <!-- App Logo -->
+      <div class="branding">
+        <img src="assets/images/egret.png" alt="" class="app-logo" />
+        <span class="app-logo-text">Sales Admin</span>
+
+        <span style="margin: auto" *ngIf="layoutConf.sidebarStyle !== 'compact'"></span>
+        <div
+          class="sidebar-compact-switch"
+          [ngClass]="{ active: layoutConf.sidebarCompactToggle }"
+          (click)="toggleCollapse()"
+          *ngIf="layoutConf.sidebarStyle !== 'compact'"
+        >
+          <span></span>
+        </div>
+      </div>
+
+      <!-- Sidebar user -->
+      <div class="app-user">
+        <span class="app-user-name m-2"></span>
+        <!-- Small buttons (no trigger button in this build – the menu is never opened) -->
+        <div class="app-user-controls">
+          <mat-menu #appUserMenu="matMenu">
+            <button mat-menu-item routerLink="/profile/overview">
+              <mat-icon>account_box</mat-icon>
+              <span>Profile</span>
+            </button>
+            <button mat-menu-item routerLink="/profile/settings">
+              <mat-icon>settings</mat-icon>
+              <span>Account Settings</span>
+            </button>
+            <button mat-menu-item routerLink="/calendar">
+              <mat-icon>date_range</mat-icon>
+              <span>Calendar</span>
+            </button>
+          </mat-menu>
+        </div>
+      </div>
+      <!-- Navigation -->
+      <app-sidenav
+        [items]="menuItems"
+        [hasIconMenu]="hasIconTypeMenuItem"
+        [iconMenuTitle]="iconTypeMenuTitle"
+      ></app-sidenav>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,145 @@
+<ng-container *ngIf="permissionObj?.view">
+  <div class="row">
+    <div class="col-md-6">
+      <h2 class="card-title m-3">Task Report</h2>
+    </div>
+    <div class="col-md-6 text-right">
+      <button
+        mat-raised-button
+        type="button"
+        class="mr-4"
+        color="primary"
+        style="min-width: 45px !important"
+        *ngIf="permissionObj?.export"
+        (click)="downloadTasks()"
+      >
+        Download Excel
+      </button>
+    </div>
+  </div>
+
+  <div class="m-3">
+    <div class="mat-elevation-z8">
+      <div class="table-container p-10">
+        <form [formGroup]="form">
+          <div class="row">
+            <div class="col-md-3">
+              <mat-form-field class="full-width">
+                <input
+                  matInput
+                  formControlName="startDate"
+                  placeholder="Start Date"
+                  [matDatepicker]="appDatepicker1"
+                  [readonly]="true"
+                />
+                <mat-datepicker-toggle matSuffix [for]="appDatepicker1"></mat-datepicker-toggle>
+              </mat-form-field>
+              <mat-datepicker #appDatepicker1></mat-datepicker>
+            </div>
+
+            <div class="col-md-3">
+              <mat-form-field class="full-width">
+                <input
+                  matInput
+                  formControlName="endDate"
+                  placeholder="End Date"
+                  [matDatepicker]="appDatepicker2"
+                  [readonly]="true"
+                />
+                <mat-datepicker-toggle matSuffix [for]="appDatepicker2"></mat-datepicker-toggle>
+              </mat-form-field>
+              <mat-datepicker #appDatepicker2></mat-datepicker>
+            </div>
+
+            <div class="col-md-3">
+              <mat-form-field class="full-width">
+                <mat-label>Sales Person</mat-label>
+                <mat-select multiple #salesPersonSelectRef (selectionChange)="getSelectedSalesPerson()">
+                  <mat-option *ngFor="let salesPerson of salesPersonList" [value]="salesPerson">
+                    {{ salesPerson.name }}
+                  </mat-option>
+                </mat-select>
+              </mat-form-field>
+            </div>
+
+            <div class="col-md-3" style="display: flex; align-items: center">
+              <div class="text-left mt-2" style="padding: 0 0 35px 55px">
+                <button
+                  mat-raised-button
+                  color="primary"
+                  class="text-center ml"
+                  *ngIf="permissionObj?.view"
+                  (click)="searchTasks()"
+                >
+                  Search
+                </button>
+              </div>
+              <div class="text-right mt-2" style="padding: 0 0 35px 55px">
+                <button mat-raised-button color="primary" class="text-center ml-w" (click)="clearFilters()">
+                  Clear Filters
+                </button>
+              </div>
+            </div>
+          </div>
+        </form>
+      </div>
+
+      <div class="table-container" *ngIf="taskDetails">
+        <div *ngIf="tasksList.length > 0">
+          <mat-table matSort [dataSource]="tasksList">
+            <ng-container matColumnDef="sno">
+              <mat-header-cell *matHeaderCellDef> S.no </mat-header-cell>
+              <mat-cell *matCellDef="let element; let i = index" data-label="sno">{{ i + 1 }}</mat-cell>
+            </ng-container>
+
+            <ng-container matColumnDef="date">
+              <mat-header-cell *matHeaderCellDef> Date </mat-header-cell>
+              <mat-cell *matCellDef="let element" data-label="date">{{ element.date }} </mat-cell>
+            </ng-container>
+
+            <ng-container matColumnDef="salesPersonName">
+              <mat-header-cell *matHeaderCellDef> Sales Person </mat-header-cell>
+              <mat-cell *matCellDef="let element" data-label="salesPersonName">{{ element.salesPersonName }} </mat-cell>
+            </ng-container>
+
+            <ng-container matColumnDef="areaName">
+              <mat-header-cell *matHeaderCellDef> Area </mat-header-cell>
+              <mat-cell *matCellDef="let element" data-label="areaName">{{ element.areaName }} </mat-cell>
+            </ng-container>
+
+            <ng-container matColumnDef="customerCount">
+              <mat-header-cell *matHeaderCellDef> Customer Count </mat-header-cell>
+              <mat-cell *matCellDef="let element" data-label="customerCount">{{ element.customerCount }} </mat-cell>
+            </ng-container>
+
+            <ng-container matColumnDef="action">
+              <mat-header-cell *matHeaderCellDef> Action </mat-header-cell>
+              <mat-cell *matCellDef="let element">
+                <button
+                  mat-raised-button
+                  class="mr-8 p-2"
+                  color="primary"
+                  *ngIf="permissionObj?.view"
+                  [disabled]="element.customerCount == 0"
+                  (click)="navigateToTaskList(element.id)"
+                >
+                  View Customers
+                </button>
+              </mat-cell>
+            </ng-container>
+
+            <mat-header-row *matHeaderRowDef="displayedColumns"></mat-header-row>
+            <mat-row *matRowDef="let row; columns: displayedColumns"></mat-row>
+          </mat-table>
+        </div>
+        <div *ngIf="tasksList.length == 0">
+          <h3 class="text-center ft-20">No Tasks Found</h3>
+        </div>
+      </div>
+    </div>
+  </div>
+</ng-container>
+
+<ng-container *ngIf="!permissionObj?.view">
+  <p class="text-center">You dont have permission , Please contact administrator</p>
+</ng-container>

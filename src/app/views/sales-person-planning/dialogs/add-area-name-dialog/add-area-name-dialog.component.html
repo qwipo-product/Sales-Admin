@@ -1,0 +1,34 @@
+<ng-container>
+  <div class="row">
+    <div class="col-md-6">
+      <h2 class="card-title m-3 text-violet">{{ data.title }}</h2>
+    </div>
+    <div class="col-md-6">
+      <mat-icon class="float-right m-3 closeicon" (click)="dialogRef.close()">close</mat-icon>
+    </div>
+  </div>
+  <form class="m-3" [formGroup]="dataSource">
+    <section id="content">
+      <div class="container inputcontainer">
+        <mat-card>
+          <mat-card-content>
+            <div class="row">
+              <div class="col-xs-12">
+                <div>
+                  <mat-form-field class="full-half nameinput">
+                    <input matInput formControlName="name" name="name" placeholder="Area Name" />
+                  </mat-form-field>
+                </div>
+                <label class="errorMessage" *ngIf="isNameExists">The name already exists. Please choose a different name.</label>
+                <label class="errorMessage" *ngIf="isNameValid"
+                  >Name is not Valid. Please correct Name(Remove Extra Spaces and Special Characters).</label
+                >
+                <button mat-raised-button color="primary" (click)="updateAreaName()">Update</button>
+              </div>
+            </div>
+          </mat-card-content>
+        </mat-card>
+      </div>
+    </section>
+  </form>
+</ng-container>

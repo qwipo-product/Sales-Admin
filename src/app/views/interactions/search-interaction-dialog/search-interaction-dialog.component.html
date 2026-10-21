@@ -1,0 +1,75 @@
+<ng-container>
+  <div class="row">
+    <div class="col-md-6">
+      <h2 class="card-title m-3 text-violet">{{ data.title }}</h2>
+    </div>
+    <div class="col-md-6">
+      <mat-icon class="float-right m-3 closeicon" (click)="dialogRef.close()"> close </mat-icon>
+    </div>
+  </div>
+
+  <form class="m-3" [formGroup]="dataSource">
+    <section id="content">
+      <div class="container">
+        <div class="card">
+          <div class="card-body card-padding">
+            <div class="row">
+              <div class="col-md-6">
+                <mat-form-field class="full-width">
+                  <input matInput formControlName="mobileNumber" name="mobileNumber" placeholder="Customer Mobile Number" />
+                </mat-form-field>
+              </div>
+
+              <div class="col-md-6">
+                <mat-form-field class="full-width">
+                  <mat-label>Sales Person</mat-label>
+                  <mat-select multiple #salesPersonSelectRef (selectionChange)="getSelectedSalesPerson()">
+                    <mat-option *ngFor="let salesPerson of salesPersonList" [value]="salesPerson">
+                      {{ salesPerson.name }}
+                    </mat-option>
+                  </mat-select>
+                </mat-form-field>
+              </div>
+
+              <div class="col-md-6">
+                <mat-form-field class="full-width">
+                  <input
+                    matInput
+                    formControlName="startDate"
+                    placeholder="Start Date"
+                    [matDatepicker]="appDatepicker1"
+                    [readonly]="true"
+                  />
+                  <mat-datepicker-toggle matSuffix [for]="appDatepicker1"></mat-datepicker-toggle>
+                </mat-form-field>
+                <mat-datepicker #appDatepicker1></mat-datepicker>
+              </div>
+
+              <div class="col-md-6">
+                <mat-form-field class="full-width">
+                  <input
+                    matInput
+                    formControlName="endDate"
+                    placeholder="End Date"
+                    [matDatepicker]="appDatepicker2"
+                    [readonly]="true"
+                  />
+                  <mat-datepicker-toggle matSuffix [for]="appDatepicker2"></mat-datepicker-toggle>
+                </mat-form-field>
+                <mat-datepicker #appDatepicker2></mat-datepicker>
+              </div>
+            </div>
+
+            <div class="row">
+              <div class="col-md-12">
+                <div class="col-md-12 text-center">
+                  <button mat-raised-button color="primary" class="mt-100px" (click)="search()">Search</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </form>
+</ng-container>

@@ -1,0 +1,17 @@
+.mattable {
+  overflow: auto !important;
+}
+
+.mat-expansion-indicator:after {
+  padding: 6px !important;
+}
+
+.mat-sort-header-content {
+  line-height: 20px !important;
+}
+
+.mdc-data-table__cell,
+.mdc-data-table__header-cell {
+  padding-top: 20px !important;
+  text-align: center !important;
+}

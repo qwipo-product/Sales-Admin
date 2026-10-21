@@ -1,0 +1,11 @@
+<mat-tab-group animationDuration="0ms" [(selectedIndex)]="selectedTabIndex">
+  <mat-tab label="Approval Request" class="w-30">
+    <leave-request *ngIf="selectedTabIndex === 0"></leave-request>
+  </mat-tab>
+  <mat-tab label="Attendance Details" class="w-30">
+    <attendance-details *ngIf="selectedTabIndex === 1"></attendance-details>
+  </mat-tab>
+  <mat-tab label="Attendance Summary" class="w-30">
+    <attendance-summary *ngIf="selectedTabIndex === 2"></attendance-summary>
+  </mat-tab>
+</mat-tab-group>

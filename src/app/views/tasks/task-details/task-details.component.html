@@ -1,0 +1,126 @@
+<div class="row">
+  <div class="col-md-6">
+    <h2 class="card-title m-3 text-violet">Tasks</h2>
+  </div>
+</div>
+
+<div class="m-3 flex flex-col md:flex-row justify-between" @fadeInOut>
+  <mat-card class="p-0">
+    <mat-card-content class="p-0">
+      <mat-sidenav-container fxFlex="0 1 auto">
+        <mat-sidenav-content>
+          <div class="table-container">
+            <mat-table matSort [dataSource]="dataSource">
+              <ng-container matColumnDef="taskDate">
+                <mat-header-cell *matHeaderCellDef> Task Date </mat-header-cell>
+                <mat-cell *matCellDef="let element" data-label="taskDate"> {{ element.taskDate }} </mat-cell>
+              </ng-container>
+
+              <ng-container matColumnDef="stopNumber">
+                <mat-header-cell *matHeaderCellDef> Stop Number </mat-header-cell>
+                <mat-cell *matCellDef="let element" data-label="stopNumber"> {{ element.stopNumber }} </mat-cell>
+              </ng-container>
+
+              <ng-container matColumnDef="status">
+                <mat-header-cell *matHeaderCellDef> Task Status </mat-header-cell>
+                <mat-cell *matCellDef="let element" data-label="status"> {{ element.status }} </mat-cell>
+              </ng-container>
+
+              <ng-container matColumnDef="customerId">
+                <mat-header-cell *matHeaderCellDef> Customer Id </mat-header-cell>
+                <mat-cell *matCellDef="let element" data-label="customerId"> {{ element.customerId }} </mat-cell>
+              </ng-container>
+
+              <ng-container matColumnDef="businessName">
+                <mat-header-cell *matHeaderCellDef> Business Name </mat-header-cell>
+                <mat-cell *matCellDef="let element" data-label="businessName"> {{ element.businessName }} </mat-cell>
+              </ng-container>
+
+              <ng-container matColumnDef="customerName">
+                <mat-header-cell *matHeaderCellDef> Customer Name </mat-header-cell>
+                <mat-cell *matCellDef="let element" data-label="customerName"> {{ element.customerName }} </mat-cell>
+              </ng-container>
+
+              <ng-container matColumnDef="areaCode">
+                <mat-header-cell *matHeaderCellDef> Area Code </mat-header-cell>
+                <mat-cell *matCellDef="let element" data-label="areaCode"> {{ element.areaCode }} </mat-cell>
+              </ng-container>
+
+              <ng-container matColumnDef="businessType">
+                <mat-header-cell *matHeaderCellDef> Business Type </mat-header-cell>
+                <mat-cell *matCellDef="let element" data-label="businessType">
+                  {{ getBusinessType(element.businessType) }}
+                </mat-cell>
+              </ng-container>
+
+              <ng-container matColumnDef="address">
+                <mat-header-cell *matHeaderCellDef> Address </mat-header-cell>
+                <mat-cell *matCellDef="let element" data-label="address"> {{ element.address }} </mat-cell>
+              </ng-container>
+
+              <ng-container matColumnDef="salesPersonName">
+                <mat-header-cell *matHeaderCellDef> Sales Person </mat-header-cell>
+                <mat-cell *matCellDef="let element" data-label="salesPersonName"> {{ element.salesPersonName }} </mat-cell>
+              </ng-container>
+
+              <ng-container matColumnDef="salesPersonId">
+                <mat-header-cell *matHeaderCellDef> Sales Person Id </mat-header-cell>
+                <mat-cell *matCellDef="let element" data-label="salesPersonId"> {{ element.salesPersonId }} </mat-cell>
+              </ng-container>
+
+              <ng-container matColumnDef="latitude">
+                <mat-header-cell *matHeaderCellDef> Latitude </mat-header-cell>
+                <mat-cell *matCellDef="let element" data-label="latitude"> {{ element.latitude }} </mat-cell>
+              </ng-container>
+
+              <ng-container matColumnDef="longitude">
+                <mat-header-cell *matHeaderCellDef> Longitude </mat-header-cell>
+                <mat-cell *matCellDef="let element" data-label="longitude"> {{ element.longitude }} </mat-cell>
+              </ng-container>
+
+              <ng-container matColumnDef="mobileNumber">
+                <mat-header-cell *matHeaderCellDef> Mobile Number </mat-header-cell>
+                <mat-cell *matCellDef="let element" data-label="mobileNumber"> {{ element.mobileNumber }} </mat-cell>
+              </ng-container>
+
+              <ng-container matColumnDef="dealerId">
+                <mat-header-cell *matHeaderCellDef> Dealer Id </mat-header-cell>
+                <mat-cell *matCellDef="let element" data-label="dealerId"> {{ element.dealerId }} </mat-cell>
+              </ng-container>
+
+              <ng-container matColumnDef="salesPersonAreaCode">
+                <mat-header-cell *matHeaderCellDef> Sales Person AreaCode </mat-header-cell>
+                <mat-cell *matCellDef="let element" data-label="salesPersonAreaCode">
+                  {{ element.salesPersonAreaCode }}
+                </mat-cell>
+              </ng-container>
+
+              <ng-container matColumnDef="interactionId">
+                <mat-header-cell *matHeaderCellDef> Interaction Id </mat-header-cell>
+                <mat-cell *matCellDef="let element" style="justify-content: center" data-label="interactionId">
+                  <button mat-raised-button class="mr-8" color="red" *ngIf="!element.interactionId" (click)="showWarning()">
+                    No Interaction
+                  </button>
+                  <button
+                    mat-raised-button
+                    class="mr-8"
+                    color="primary"
+                    *ngIf="element.interactionId"
+                    (click)="navigateToTaskList(element.interactionId)"
+                  >
+                    View Interaction
+                  </button>
+                </mat-cell>
+              </ng-container>
+
+              <mat-header-row *matHeaderRowDef="displayedColumns"></mat-header-row>
+              <mat-row *matRowDef="let row; columns: displayedColumns"></mat-row>
+            </mat-table>
+          </div>
+        </mat-sidenav-content>
+      </mat-sidenav-container>
+      <!-- Connected to the table through dataSource.paginator (TaskDetailsComponent.ngOnInit). -->
+      <mat-paginator [pageSize]="pageSize" [pageSizeOptions]="[25, 50, 100]"></mat-paginator>
+    </mat-card-content>
+  </mat-card>
+</div>

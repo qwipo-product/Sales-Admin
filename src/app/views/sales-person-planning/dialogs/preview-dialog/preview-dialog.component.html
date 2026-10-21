@@ -1,0 +1,53 @@
+<ng-container>
+  <div class="row">
+    <div class="col-md-6">
+      <h2 class="card-title m-3 text-violet">View Tasks Preview</h2>
+    </div>
+    <div class="col-md-6">
+      <mat-icon class="float-right m-3 closeicon" (click)="dialogRef.close()">close</mat-icon>
+    </div>
+  </div>
+  <div class="m-3">
+    <div class="table-container p-5">
+      <mat-table matSort [dataSource]="tasksList">
+        <ng-container matColumnDef="name">
+          <mat-header-cell *matHeaderCellDef>Sales Person</mat-header-cell>
+          <mat-cell *matCellDef="let element" data-label="name"> {{ element.name }} </mat-cell>
+        </ng-container>
+
+        <ng-container matColumnDef="customerCount">
+          <mat-header-cell *matHeaderCellDef>Customers Count By Filters </mat-header-cell>
+          <mat-cell *matCellDef="let element" data-label="customerCount"> {{ element.customerCount }} </mat-cell>
+        </ng-container>
+
+        <ng-container matColumnDef="selectedDaysCount">
+          <mat-header-cell *matHeaderCellDef>Days Count</mat-header-cell>
+          <mat-cell *matCellDef="let element" data-label="selectedDaysCount"> {{ element.selectedDaysCount }} </mat-cell>
+        </ng-container>
+
+        <ng-container matColumnDef="taskCount">
+          <mat-header-cell *matHeaderCellDef>Given Task Count/ Day</mat-header-cell>
+          <mat-cell *matCellDef="let element" data-label="taskCount"> {{ element.taskCount }} </mat-cell>
+        </ng-container>
+
+        <ng-container matColumnDef="expectedTaskCount">
+          <mat-header-cell *matHeaderCellDef>Expected Task/ Day</mat-header-cell>
+          <mat-cell *matCellDef="let element" data-label="expectedTaskCount" class="text-center"> {{ element.expectedTaskCount }} </mat-cell>
+        </ng-container>
+
+        <ng-container matColumnDef="message">
+          <mat-header-cell *matHeaderCellDef>Warning</mat-header-cell>
+          <mat-cell *matCellDef="let element" data-label="message" class="text-center" [style.color]="getMessageColor(element.status)">
+            {{ element.message }}
+          </mat-cell>
+        </ng-container>
+
+        <mat-header-row *matHeaderRowDef="displayColumns"></mat-header-row>
+        <mat-row *matRowDef="let row; columns: displayColumns"></mat-row>
+      </mat-table>
+      <div class="col-md-6 mt-5 text-right" *ngIf="generateTasksBtn">
+        <button mat-raised-button color="primary" class="m-2" (click)="generateTasks()">Generate Tasks</button>
+      </div>
+    </div>
+  </div>
+</ng-container>

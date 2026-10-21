@@ -1,0 +1,18 @@
+<div class="text-center mat-bg-primary !pt-4 !pb-4">
+  <h6 class="m-0 text-white">Notifications</h6>
+</div>
+<div class="flex flex-col min-w-[220px]">
+  <!-- Notification item -->
+  <div *ngFor="let n of notifications" class="flex flex-row items-center px-4 py-3 hover:bg-slate-50">
+    <mat-icon [color]="n.color" class="notific-icon mr-4 rtl:ml-4">{{ n.icon }}</mat-icon>
+    <a [routerLink]="[n.route || '/dashboard']">
+      <div class="mat-list-text">
+        <h4 class="message !mb-0">{{ n.message }}</h4>
+        <small class="time text-muted">{{ n.time }}</small>
+      </div>
+    </a>
+  </div>
+</div>
+<div class="text-center mt-4" *ngIf="notifications.length">
+  <small><a href="#" (click)="clearAll($event)">Clear all notifications</a></small>
+</div>

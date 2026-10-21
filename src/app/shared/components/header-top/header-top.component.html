@@ -1,0 +1,101 @@
+<div class="header-topnav py-3">
+  <div class="container">
+    <div class="topnav flex">
+      <!-- App Logo -->
+      <div class="topbar-branding">
+        <img src="assets/images/egret.png" alt="" class="app-logo" />
+      </div>
+
+      <ul class="menu" *ngIf="!layoutConf.isMobile">
+        <li *ngFor="let item of menuItems; let i = index">
+          <div *ngIf="item.type !== 'separator'" routerLinkActive="open">
+            <a matRipple routerLink="/{{ item.state }}" *ngIf="item.type === 'link'">
+              <mat-icon>{{ item.icon }}</mat-icon>
+              {{ item.name | translate }}
+            </a>
+            <div *ngIf="item.type === 'dropDown'">
+              <label matRipple for="drop-{{ i }}" class="toggle"
+                ><mat-icon>{{ item.icon }}</mat-icon> {{ item.name | translate }}</label
+              >
+              <a matRipple><mat-icon>{{ item.icon }}</mat-icon> {{ item.name | translate }}</a>
+              <input type="checkbox" id="drop-{{ i }}" />
+              <ul>
+                <li *ngFor="let itemLvL2 of item.sub; let j = index" routerLinkActive="open">
+                  <a
+                    matRipple
+                    routerLink="{{ item.state ? '/' + item.state : '' }}/{{ itemLvL2.state }}"
+                    *ngIf="itemLvL2.type !== 'dropDown'"
+                  >
+                    <mat-icon *ngIf="itemLvL2.icon">{{ itemLvL2.icon }}</mat-icon>
+                    {{ itemLvL2.name | translate }}
+                  </a>
+
+                  <div *ngIf="itemLvL2.type === 'dropDown'">
+                    <label matRipple for="drop-{{ i }}{{ j }}" class="toggle">{{ itemLvL2.name | translate }}</label>
+                    <a matRipple
+                      ><mat-icon *ngIf="itemLvL2.icon">{{ itemLvL2.icon }}</mat-icon> {{ itemLvL2.name | translate }}</a
+                    >
+                    <input type="checkbox" id="drop-{{ i }}{{ j }}" />
+                    <!-- Level 3 -->
+                    <ul>
+                      <li *ngFor="let itemLvL3 of itemLvL2.sub" routerLinkActive="open">
+                        <a
+                          matRipple
+                          routerLink="{{ item.state ? '/' + item.state : '' }}{{
+                            itemLvL2.state ? '/' + itemLvL2.state : ''
+                          }}/{{ itemLvL3.state }}"
+                        >
+                          <mat-icon *ngIf="itemLvL3.icon">{{ itemLvL3.icon }}</mat-icon>
+                          {{ itemLvL3.name | translate }}
+                        </a>
+                      </li>
+                    </ul>
+                  </div>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </li>
+      </ul>
+      <span class="flex-grow"></span>
+      <!-- Notification toggle button -->
+      <button
+        mat-icon-button
+        matTooltip="Notifications"
+        (click)="toggleNotific()"
+        [style.overflow]="'visible'"
+        class=""
+      >
+        <mat-icon>notifications</mat-icon>
+        <span class="notification-number mat-bg-warn">3</span>
+      </button>
+      <!-- Top left user menu -->
+      <button mat-icon-button [matMenuTriggerFor]="accountMenu" class="mr-4 rtl:ml-4 img-button">
+        <img src="assets/images/face-7.jpg" alt="" class="rounded-full" />
+      </button>
+
+      <mat-menu #accountMenu="matMenu">
+        <button mat-menu-item [routerLink]="['/profile/overview']">
+          <mat-icon>account_box</mat-icon>
+          <span>Profile</span>
+        </button>
+        <button mat-menu-item [routerLink]="['/profile/settings']">
+          <mat-icon>settings</mat-icon>
+          <span>Account Settings</span>
+        </button>
+        <button mat-menu-item>
+          <mat-icon>notifications_off</mat-icon>
+          <span>Disable alerts</span>
+        </button>
+        <button mat-menu-item (click)="signout()">
+          <mat-icon>exit_to_app</mat-icon>
+          <span>Sign out</span>
+        </button>
+      </mat-menu>
+      <!-- Mobile screen menu toggle -->
+      <button mat-icon-button class="mr-4 rtl:ml-4" *ngIf="layoutConf.isMobile" (click)="toggleSidenav()">
+        <mat-icon>menu</mat-icon>
+      </button>
+    </div>
+  </div>
+</div>

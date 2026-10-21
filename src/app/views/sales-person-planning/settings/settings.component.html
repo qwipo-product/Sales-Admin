@@ -1,0 +1,16 @@
+<ng-container *ngIf="permissionObj?.view">
+  <mat-tab-group animationDuration="0ms" [(selectedIndex)]="selectedTabIndex">
+    <mat-tab label="Areas" class="w-30">
+      <sales-person-areas *ngIf="selectedTabIndex === 0"></sales-person-areas>
+    </mat-tab>
+    <mat-tab label="Sales Person" class="w-30">
+      <sales-person-mapping *ngIf="selectedTabIndex === 1"></sales-person-mapping>
+    </mat-tab>
+    <mat-tab label="Tasks" class="w-30">
+      <sales-person-tasks *ngIf="selectedTabIndex === 2"></sales-person-tasks>
+    </mat-tab>
+  </mat-tab-group>
+</ng-container>
+<ng-container *ngIf="!permissionObj?.view">
+  <p class="text-center">You dont have permission , Please contact administrator</p>
+</ng-container>

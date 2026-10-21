@@ -1,0 +1,145 @@
+<ng-container *ngIf="permissionObj?.view">
+  <div class="m-3">
+    <div class="mat-elevation-z8" *ngIf="salesPersonList && salesPersonList.length > 0">
+      <div class="table-container p-10">
+        <h2 class="card-title m-3 text-violet">Filter by</h2>
+        <form [formGroup]="form">
+          <div class="row">
+            <div class="col-md-6">
+              <div>
+                <mat-form-field class="full-width">
+                  <input
+                    matInput
+                    formControlName="endDate"
+                    placeholder="Select Date"
+                    [matDatepicker]="appDatepicker1"
+                    [min]="minDate"
+                    (dateChange)="onSelect($event)"
+                  />
+                  <mat-datepicker-toggle matSuffix [for]="appDatepicker1"></mat-datepicker-toggle>
+                </mat-form-field>
+                <mat-datepicker #appDatepicker1></mat-datepicker>
+              </div>
+              <div class="dateSelectDiv" *ngIf="selectedDates.length > 0">
+                <ng-container *ngFor="let date of selectedDates; let i = index">
+                  <span class="datespan">
+                    <span>{{ date | date: 'yyyy-MM-dd' }}</span>
+                    <mat-icon class="closeicon" (click)="removeDate(i)">close</mat-icon>
+                  </span>
+                </ng-container>
+              </div>
+            </div>
+
+            <div class="col-md-6">
+              <mat-form-field class="full-width">
+                <mat-label>Customer Status</mat-label>
+                <mat-select formControlName="customerStatusSelectRef" multiple (selectionChange)="getSelectedCustomerStatus()">
+                  <mat-option *ngFor="let status of customerStatusList" [value]="status.value"> {{ status.name }} </mat-option>
+                </mat-select>
+              </mat-form-field>
+            </div>
+
+            <div class="col-md-6">
+              <mat-form-field class="full-width">
+                <mat-label>Business Status</mat-label>
+                <mat-select formControlName="businessStatusSelectRef" multiple (selectionChange)="getSelectedBusinessStatus()">
+                  <mat-checkbox
+                    [checked]="selectAllBusinessStatusCheckbox"
+                    (change)="toggleSelectAllBusinessStatus()"
+                    >Select All</mat-checkbox
+                  >
+                  <mat-option
+                    *ngFor="let status of businessStatusList"
+                    [value]="status.value"
+                    (click)="isAllBusinessStatusSelected($event)"
+                  >
+                    {{ status.name }}
+                  </mat-option>
+                </mat-select>
+              </mat-form-field>
+            </div>
+
+            <div class="col-md-6">
+              <mat-form-field class="full-width">
+                <mat-label>Business Type</mat-label>
+                <mat-select formControlName="businessTypeSelectRef" multiple (selectionChange)="getSelectedBusinessTypes()">
+                  <mat-checkbox
+                    [checked]="selectAllBusinessTypeCheckbox"
+                    (change)="toggleSelectAllBusinessTypes()"
+                    >Select All</mat-checkbox
+                  >
+                  <mat-option
+                    *ngFor="let type of businessTypesList"
+                    [value]="type.value"
+                    (click)="isAllBusinessTypesSelected($event)"
+                  >
+                    {{ type.name }}
+                  </mat-option>
+                </mat-select>
+              </mat-form-field>
+            </div>
+
+            <div class="col-md-6">
+              <mat-form-field class="full-width">
+                <mat-label>Customer Order Status</mat-label>
+                <mat-select formControlName="customerOrderStatusRef" multiple (selectionChange)="getSelectedCustomerOrderStatus()">
+                  <mat-option *ngFor="let status of customerOrderStatusList" [value]="status.value"> {{ status.name }} </mat-option>
+                </mat-select>
+              </mat-form-field>
+            </div>
+          </div>
+        </form>
+
+        <h2 class="card-title m-3 text-violet">Sales Person List</h2>
+        <div class="table-container">
+          <mat-table matSort [dataSource]="salesPersonList">
+            <ng-container matColumnDef="checkbox">
+              <mat-header-cell *matHeaderCellDef>
+                <mat-checkbox [checked]="selectAllCheckbox" (change)="toggleSelectAll()"></mat-checkbox>
+              </mat-header-cell>
+              <mat-cell *matCellDef="let element">
+                <mat-checkbox [checked]="checkboxStates[element.id]" (change)="toggleCheckbox(element)"></mat-checkbox>
+              </mat-cell>
+            </ng-container>
+
+            <ng-container matColumnDef="Name">
+              <mat-header-cell *matHeaderCellDef>Sales Person Name </mat-header-cell>
+              <mat-cell *matCellDef="let element" data-label="name"> {{ element.name }} </mat-cell>
+            </ng-container>
+
+            <ng-container matColumnDef="Area Name">
+              <mat-header-cell *matHeaderCellDef style="text-align: center">Area Name </mat-header-cell>
+              <mat-cell *matCellDef="let element" data-label="areaName"> {{ element.areaName }} </mat-cell>
+            </ng-container>
+
+            <ng-container matColumnDef="Customer Count">
+              <mat-header-cell *matHeaderCellDef>Customers</mat-header-cell>
+              <mat-cell *matCellDef="let element" data-label="customerCount" class="text-center"> {{ element.customerCount }} </mat-cell>
+            </ng-container>
+
+            <ng-container matColumnDef="Tasks Count">
+              <mat-header-cell *matHeaderCellDef> Tasks Count </mat-header-cell>
+              <mat-cell *matCellDef="let element" data-label="tasksCount">
+                <mat-form-field class="full-width mt-2">
+                  <input matInput placeholder="Enter Tasks Count" class="text-center" [(ngModel)]="element.tasksCount" />
+                </mat-form-field>
+              </mat-cell>
+            </ng-container>
+
+            <mat-header-row *matHeaderRowDef="salesPersonColumns"></mat-header-row>
+            <mat-row *matRowDef="let row; columns: salesPersonColumns"></mat-row>
+          </mat-table>
+        </div>
+      </div>
+      <div class="col-md-6 mt-5 text-right">
+        <button mat-raised-button class="m-2" color="primary" (click)="generateTasks()" *ngIf="permissionObj?.view"> Preview </button>
+      </div>
+    </div>
+    <div class="mat-elevation-z8" *ngIf="salesPersonList && salesPersonList.length == 0">
+      <h2 class="card-title m-3 text-violet p-10 text-center">No Salespersons Assigned to Any Areas.</h2>
+    </div>
+  </div>
+</ng-container>
+<ng-container *ngIf="!permissionObj?.view">
+  <p class="text-center">You dont have permission , Please contact administrator</p>
+</ng-container>

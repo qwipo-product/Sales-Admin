@@ -1,0 +1,19 @@
+<div class="page-wrap h-full mat-bg-default">
+  <div class="app-error">
+    <div class="flex items-center">
+      <mat-icon color="warn" class="error-icon">warning</mat-icon>
+      <div class="error-text">
+        <h1 class="error-title">500</h1>
+        <div class="error-subtitle">Server Error!</div>
+      </div>
+    </div>
+
+    <div class="error-actions flex flex-col sm:flex-row">
+      <button mat-raised-button color="primary" class="sm:mr-2 rtl:ml-2" [routerLink]="['/home']">
+        Back to Dashboard
+      </button>
+      <div class="h-2"></div>
+      <button mat-raised-button color="warn">Report this Problem</button>
+    </div>
+  </div>
+</div>

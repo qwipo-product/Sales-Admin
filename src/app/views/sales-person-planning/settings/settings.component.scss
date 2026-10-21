@@ -1,0 +1,10 @@
+mat-tab {
+  width: 50%;
+}
+
+mat-header-cell:nth-child(2),
+mat-cell:nth-child(2) {
+  flex: 0 0 150px !important;
+  max-width: 200px !important;
+  min-width: 200px !important;
+}

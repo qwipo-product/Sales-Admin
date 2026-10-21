@@ -1,0 +1,33 @@
+<div class="row">
+  <div class="col-md-6">
+    <h2 class="card-title m-3 text-violet">Upload JSON</h2>
+  </div>
+  <div class="col-md-6">
+    <mat-icon class="float-right m-3 closeicon" (click)="dialogRef.close()">close</mat-icon>
+  </div>
+</div>
+<div class="m-3">
+  <section id="content">
+    <div class="container">
+      <div class="card">
+        <div class="card-body card-padding">
+          <!-- value.bind / files.bind are inert literal attributes carried over from an Aurelia-style template -->
+          <input
+            type="file"
+            accept=".geojson"
+            value.bind="fileVal"
+            files.bind="selectedFiles"
+            id="fileInput"
+            class="m-10"
+            (change)="onSelectFile($event)"
+          />
+          <label class="errorMessage" *ngIf="isMandatoryProperties"
+            >Please note that some areas do not contain all the required properties (id, type, or AreaCode)</label
+          >
+          <label class="errorMessage" *ngIf="isFileSelected">Please Select Json File To Upload</label>
+          <button mat-raised-button color="primary" (click)="submit()">Upload Coordinates</button>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>

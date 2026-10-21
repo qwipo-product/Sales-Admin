@@ -1,0 +1,22 @@
+mat-header-cell:nth-child(1),
+mat-cell:nth-child(1) {
+  flex: 0 0 150px !important;
+  max-width: 100px !important;
+  min-width: 100px !important;
+}
+
+mat-header-cell:nth-child(6),
+mat-cell:nth-child(6) {
+  flex: 0 0 150px !important;
+  max-width: 220px !important;
+  min-width: 220px !important;
+}
+
+.ml {
+  margin-left: -31px;
+}
+
+.ml-w {
+  margin-left: -41px;
+  width: 113px;
+}

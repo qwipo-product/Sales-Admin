@@ -1,0 +1,181 @@
+<ng-container *ngIf="permissionObj?.view">
+  <div class="p-3">
+    <div class="mat-elevation-z8">
+      <div class="table-container p-10">
+        <form [formGroup]="form">
+          <div class="row filters">
+            <div class="col-md-6">
+              <mat-form-field class="full-width">
+                <input
+                  matInput
+                  formControlName="startDate"
+                  placeholder="Start Date"
+                  [matDatepicker]="appDatepicker1"
+                  [readonly]="true"
+                />
+                <mat-datepicker-toggle matSuffix [for]="appDatepicker1"></mat-datepicker-toggle>
+              </mat-form-field>
+              <mat-datepicker #appDatepicker1></mat-datepicker>
+            </div>
+
+            <div class="col-md-6">
+              <mat-form-field class="full-width">
+                <input
+                  matInput
+                  formControlName="endDate"
+                  placeholder="End Date"
+                  [matDatepicker]="appDatepicker2"
+                  [readonly]="true"
+                />
+                <mat-datepicker-toggle matSuffix [for]="appDatepicker2"></mat-datepicker-toggle>
+              </mat-form-field>
+              <mat-datepicker #appDatepicker2></mat-datepicker>
+            </div>
+
+            <div class="col-md-6">
+              <mat-form-field class="full-width">
+                <mat-label>Sales Person</mat-label>
+                <mat-select multiple #salesPersonSelectRef (selectionChange)="getSelectedSalesPerson()">
+                  <mat-option *ngFor="let salesPerson of salesPersonList" [value]="salesPerson">
+                    {{ salesPerson.name }}
+                  </mat-option>
+                </mat-select>
+              </mat-form-field>
+            </div>
+
+            <div class="col-md-6">
+              <mat-form-field class="full-width">
+                <mat-label>Lead Name</mat-label>
+                <mat-select multiple #salesLeadSelectRef (selectionChange)="getSelectedLead()">
+                  <mat-option *ngFor="let lead of leadList" [value]="lead">
+                    {{ lead.name }}
+                  </mat-option>
+                </mat-select>
+              </mat-form-field>
+            </div>
+
+            <div class="col-md-12 custom-flex">
+              <div class="text-center mt-2 mr-4 flex-item">
+                <button
+                  *ngIf="permissionObj?.view"
+                  mat-raised-button
+                  color="primary"
+                  class="text-center ml"
+                  (click)="searchAttendanceRequests()"
+                >
+                  Search
+                </button>
+              </div>
+              <div class="text-center mt-2 flex-item">
+                <button mat-raised-button color="primary" class="text-center ml-w" (click)="clearFilters()">
+                  Clear Filters
+                </button>
+              </div>
+            </div>
+          </div>
+        </form>
+      </div>
+
+      <!-- NOTE: unlike leave-request, this block is a sibling of .table-container.p-10 (inside .mat-elevation-z8) -->
+      <div
+        class="m-3 flex flex-col md:flex-row justify-between"
+        style="clear: both"
+        [@animate]="{ value: '*', params: { y: '50px', delay: '300ms' } }"
+      >
+        <mat-card class="p-0">
+          <mat-card-content class="p-0">
+            <mat-sidenav-container fxFlex="0 1 auto">
+              <mat-sidenav-content>
+                <div>
+                  <div class="table-container" *ngIf="attendanceList">
+                    <div *ngIf="attendanceList.length > 0">
+                      <mat-table [dataSource]="attendanceList" matSort>
+                        <ng-container matColumnDef="salesPersonName">
+                          <mat-header-cell *matHeaderCellDef> Sales Person </mat-header-cell>
+                          <mat-cell *matCellDef="let element" data-label="salesPersonName">
+                            {{ element.salesPerson.name }}
+                          </mat-cell>
+                        </ng-container>
+
+                        <ng-container matColumnDef="mobileNumber">
+                          <mat-header-cell *matHeaderCellDef> Mobile Number </mat-header-cell>
+                          <mat-cell *matCellDef="let element" data-label="mobileNumber">
+                            {{ element.salesPerson.mobileNumber }}
+                          </mat-cell>
+                        </ng-container>
+
+                        <ng-container matColumnDef="leadName">
+                          <mat-header-cell *matHeaderCellDef> Lead Name </mat-header-cell>
+                          <mat-cell *matCellDef="let element" data-label="leadName">
+                            {{ element.salesLead.name }}
+                          </mat-cell>
+                        </ng-container>
+
+                        <ng-container matColumnDef="leadMobileNumber">
+                          <mat-header-cell *matHeaderCellDef> Lead Mobile Number </mat-header-cell>
+                          <mat-cell *matCellDef="let element" data-label="leadMobileNumber">
+                            {{ element.salesLead.mobileNumber }}
+                          </mat-cell>
+                        </ng-container>
+
+                        <ng-container matColumnDef="logIn">
+                          <mat-header-cell *matHeaderCellDef> Log In </mat-header-cell>
+                          <mat-cell *matCellDef="let element" data-label="logIn"> {{ element.checkInTime }} </mat-cell>
+                        </ng-container>
+
+                        <ng-container matColumnDef="logOut">
+                          <mat-header-cell *matHeaderCellDef> Log Out </mat-header-cell>
+                          <mat-cell *matCellDef="let element" data-label="logOut"> {{ element.checkOutTime }} </mat-cell>
+                        </ng-container>
+
+                        <ng-container matColumnDef="status">
+                          <mat-header-cell *matHeaderCellDef> Status </mat-header-cell>
+                          <mat-cell *matCellDef="let element" data-label="status">
+                            <ng-container *ngIf="element.status === 1"> checked in </ng-container>
+                            <ng-container *ngIf="element.status === 2"> checked out </ng-container>
+                            <ng-container *ngIf="element.status === 3"> Reason for early logout </ng-container>
+                            <ng-container *ngIf="element.status === 4"> Reason for early logout Accepted </ng-container>
+                            <ng-container *ngIf="element.status === 5"> Reason for early logout Rejected </ng-container>
+                            <ng-container *ngIf="element.status === 6"> Apply leave </ng-container>
+                            <ng-container *ngIf="element.status === 7"> Leave accepted </ng-container>
+                            <ng-container *ngIf="element.status === 8"> Leave rejected </ng-container>
+                          </mat-cell>
+                        </ng-container>
+
+                        <ng-container matColumnDef="appliedDate">
+                          <mat-header-cell *matHeaderCellDef>Applied Date </mat-header-cell>
+                          <mat-cell *matCellDef="let element" data-label="appliedDate"> {{ element.appliedOn }} </mat-cell>
+                        </ng-container>
+
+                        <ng-container matColumnDef="reason">
+                          <mat-header-cell *matHeaderCellDef> Reason </mat-header-cell>
+                          <mat-cell *matCellDef="let element" data-label="reason"> {{ element.reason }}</mat-cell>
+                        </ng-container>
+
+                        <ng-container matColumnDef="createdOn">
+                          <mat-header-cell *matHeaderCellDef> Created On </mat-header-cell>
+                          <mat-cell *matCellDef="let element" data-label="createdOn"> {{ element.createdDate }}</mat-cell>
+                        </ng-container>
+
+                        <mat-header-row *matHeaderRowDef="displayedColumns"></mat-header-row>
+                        <mat-row *matRowDef="let row; columns: displayedColumns"></mat-row>
+                      </mat-table>
+                    </div>
+
+                    <div *ngIf="attendanceList && attendanceList.length == 0">
+                      <h3 class="text-center ft-20">No Attendance List Found</h3>
+                    </div>
+                  </div>
+                </div>
+              </mat-sidenav-content>
+            </mat-sidenav-container>
+          </mat-card-content>
+        </mat-card>
+      </div>
+    </div>
+  </div>
+</ng-container>
+
+<ng-container *ngIf="!permissionObj?.view">
+  <p class="text-center">You dont have permission , Please contact administrator</p>
+</ng-container>

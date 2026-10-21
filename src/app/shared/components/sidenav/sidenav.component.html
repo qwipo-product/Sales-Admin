@@ -1,0 +1,90 @@
+<div class="sidenav-hold" #sidenav>
+  <div class="icon-menu mb-4" *ngIf="hasIconTypeMenuItem">
+    <!-- Icon menu separator -->
+    <div class="mb-4 nav-item-sep flex flex-col justify-center items-center">
+      <mat-divider class="w-[240px]"></mat-divider>
+      <span class="text-muted !px-0">{{ iconTypeMenuTitle }}</span>
+    </div>
+    <!-- Icon menu items -->
+    <div class="icon-menu-list flex flex-row justify-center">
+      <div class="icon-menu-item" *ngFor="let item of menuItems">
+        <a
+          *ngIf="!item.disabled && item.type === 'icon'"
+          mat-icon-button
+          routerLinkActive
+          class="rtl:!p-3"
+          [matTooltip]="item.tooltip"
+          routerLink="/{{ item.state }}"
+        >
+          <mat-icon *ngIf="item.icon" class="sidenav-mat-icon">{{ item.icon }}</mat-icon>
+          <mat-icon *ngIf="item.svgIcon" [svgIcon]="item.svgIcon" class="svgIcon"></mat-icon>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <ng-container *ngTemplateOutlet="menuTemplate; context: { menuItems: menuItems }"></ng-container>
+</div>
+
+<ng-template #menuTemplate let-menuItems="menuItems">
+  <ul appDropdown class="sidenav">
+    <ng-container *ngFor="let item of menuItems">
+      <li *ngIf="canAccess(item)" appDropdownLink routerLinkActive="open">
+        <div class="nav-item-sep" *ngIf="item.type === 'separator'">
+          <mat-divider></mat-divider>
+          <span class="text-muted">{{ item.name | translate }}</span>
+        </div>
+        <div *ngIf="!item.disabled && item.type !== 'separator' && item.type !== 'icon'" class="lvl1">
+          <a
+            routerLink="/{{ item.state }}"
+            appDropdownToggle
+            matRipple
+            routerLinkActive="open"
+            *ngIf="item.type !== 'extLink' && item.type !== 'dropDown'"
+          >
+            <mat-icon *ngIf="item.icon" class="sidenav-mat-icon">{{ item.icon }}</mat-icon>
+            <mat-icon *ngIf="item.svgIcon" [svgIcon]="item.svgIcon" class="svgIcon"></mat-icon>
+            <span class="item-name lvl1">{{ item.name | translate }}</span>
+            <span class="flex-grow"></span>
+            <span
+              class="menuitem-badge mat-bg-{{ badge.color }}"
+              [ngStyle]="{ background: badge.color }"
+              *ngFor="let badge of item.badges"
+              >{{ badge.value }}</span
+            >
+          </a>
+          <a [href]="item.state" appDropdownToggle matRipple *ngIf="item.type === 'extLink'" target="_blank">
+            <mat-icon *ngIf="item.icon" class="sidenav-mat-icon">{{ item.icon }}</mat-icon>
+            <span class="item-name lvl1">{{ item.name | translate }}</span>
+            <span class="flex-grow"></span>
+            <span
+              class="menuitem-badge mat-bg-{{ badge.color }}"
+              [ngStyle]="{ background: badge.color }"
+              *ngFor="let badge of item.badges"
+              >{{ badge.value }}</span
+            >
+          </a>
+
+          <!-- DropDown -->
+          <a *ngIf="item.type === 'dropDown' && showDropDown(item.sub)" appDropdownToggle matRipple>
+            <mat-icon *ngIf="item.icon" class="sidenav-mat-icon">{{ item.icon }}</mat-icon>
+            <mat-icon *ngIf="item.svgIcon" [svgIcon]="item.svgIcon" class="svgIcon"></mat-icon>
+            <span class="item-name lvl1">{{ item.name | translate }}</span>
+            <span class="flex-grow"></span>
+            <span
+              class="menuitem-badge mat-bg-{{ badge.color }}"
+              [ngStyle]="{ background: badge.color }"
+              *ngFor="let badge of item.badges"
+              >{{ badge.value }}</span
+            >
+            <mat-icon class="menu-caret">keyboard_arrow_right</mat-icon>
+          </a>
+          <!-- LEVEL 2 (recursive) -->
+          <div *ngIf="item.type === 'dropDown'">
+            <ng-container *ngTemplateOutlet="menuTemplate; context: { menuItems: item.sub }"></ng-container>
+          </div>
+        </div>
+      </li>
+    </ng-container>
+  </ul>
+</ng-template>

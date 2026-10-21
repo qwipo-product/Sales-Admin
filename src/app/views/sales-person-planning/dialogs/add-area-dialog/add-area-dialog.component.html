@@ -1,0 +1,45 @@
+<ng-container>
+  <div class="row">
+    <div class="col-md-6">
+      <h2 class="card-title m-3 text-violet">Add Area</h2>
+    </div>
+    <div class="col-md-6">
+      <mat-icon class="float-right m-3 closeicon" (click)="dialogRef.close()">close</mat-icon>
+    </div>
+  </div>
+  <form class="m-3" [formGroup]="dataSource">
+    <section id="content">
+      <div class="container">
+        <mat-card>
+          <mat-card-content>
+            <div class="row">
+              <div class="col-xs-12">
+                <div>
+                  <mat-form-field class="full-half nameinput">
+                    <input matInput formControlName="name" name="name" placeholder="Area Name" />
+                  </mat-form-field>
+                </div>
+                <label class="errorMessage" *ngIf="isNameExists">The name already exists. Please choose a different name.</label>
+                <label class="errorMessage" *ngIf="isNameValid"
+                  >Name is not Valid. Please correct Name(Remove Extra Spaces and Special Characters).</label
+                >
+                <div class="radiobtn">
+                  <mat-radio-group name="active" formControlName="type">
+                    <mat-radio-button name="General" class="mx-12" style="margin-left: 0px" [value]="1">General</mat-radio-button>
+                    <mat-radio-button name="Wholesale" [value]="2">Wholesale</mat-radio-button>
+                  </mat-radio-group>
+                </div>
+                <input type="file" accept=".geojson" id="fileInput" class="m-10 choosefile" (change)="onSelectFile($event)" />
+                <button mat-raised-button color="primary" (click)="addNewArea()">Save</button>
+                <label class="errorMessage" *ngIf="isGeoJsonNotSingle">Upload Only one geo Polygon At a time.</label>
+                <label class="errorMessage" *ngIf="isMandatoryProperties"
+                  >Please note that some areas do not contain all the required properties (id, type, or AreaCode)</label
+                >
+              </div>
+            </div>
+          </mat-card-content>
+        </mat-card>
+      </div>
+    </section>
+  </form>
+</ng-container>

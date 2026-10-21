@@ -1,0 +1,229 @@
+// =====================================================================================================================
+// Angular Material 16 (M2 / MDC-based) theme that regenerates `docs/reconstruction/reference/material-generated.reference.css`.
+// Inferred from the compiled CSS (see STYLES.md). Diff the output against docs/reconstruction/reference/material-generated.reference.css.
+//
+// Evidence-based values:
+//   primary default (500) #0081ff, contrast white
+//   accent  default (500) #ff8a48, contrast dark (rgba(0,0,0,.87))
+//   warn    default (500) #ff3d57, contrast white
+//   Every hue of each palette is the main colour: the production CSS uses the main colour even where Material reads
+//   other hues (e.g. hue 200 for dark-theme slide-toggle handles).
+//   Typography: Inter, "Helvetica Neue", sans-serif, letter-spacing normal everywhere (values per level below).
+//   Density: 0 (form-field infix min-height 56px, icon-button 48px, list 48/64/88px ...).
+//   Background overrides: light app-bar #ededed, selected-button #c7c7c7, disabled-button-toggle #e1e1e1;
+//                         dark background #1a2038, card/dialog/app-bar/raised-button #222a49,
+//                         selected-button #3a487e, disabled-button-toggle #2a345b.
+// =====================================================================================================================
+@use 'sass:map';
+@use '@angular/material' as mat;
+
+$egret-primary-palette: (
+  50: #0081ff,
+  100: #0081ff,
+  200: #0081ff,
+  300: #0081ff,
+  400: #0081ff,
+  500: #0081ff,
+  600: #0081ff,
+  700: #0081ff,
+  800: #0081ff,
+  900: #0081ff,
+  A100: #0081ff,
+  A200: #0081ff,
+  A400: #0081ff,
+  A700: #0081ff,
+  contrast: (
+    50: rgba(black, 0.87),
+    100: rgba(black, 0.87),
+    200: rgba(black, 0.87),
+    300: rgba(black, 0.87),
+    400: white,
+    500: white,
+    600: white,
+    700: white,
+    800: white,
+    900: white,
+    A100: rgba(black, 0.87),
+    A200: rgba(black, 0.87),
+    A400: rgba(black, 0.87),
+    A700: rgba(black, 0.87),
+  ),
+);
+
+$egret-accent-palette: (
+  50: #ff8a48,
+  100: #ff8a48,
+  200: #ff8a48,
+  300: #ff8a48,
+  400: #ff8a48,
+  500: #ff8a48,
+  600: #ff8a48,
+  700: #ff8a48,
+  800: #ff8a48,
+  900: #ff8a48,
+  A100: #ff8a48,
+  A200: #ff8a48,
+  A400: #ff8a48,
+  A700: #ff8a48,
+  contrast: (
+    50: rgba(black, 0.87),
+    100: rgba(black, 0.87),
+    200: rgba(black, 0.87),
+    300: rgba(black, 0.87),
+    400: rgba(black, 0.87),
+    500: rgba(black, 0.87),
+    600: rgba(black, 0.87),
+    700: rgba(black, 0.87),
+    800: rgba(black, 0.87),
+    900: white,
+    A100: rgba(black, 0.87),
+    A200: rgba(black, 0.87),
+    A400: rgba(black, 0.87),
+    A700: rgba(black, 0.87),
+  ),
+);
+
+$egret-warn-palette: (
+  50: #ff3d57,
+  100: #ff3d57,
+  200: #ff3d57,
+  300: #ff3d57,
+  400: #ff3d57,
+  500: #ff3d57,
+  600: #ff3d57,
+  700: #ff3d57,
+  800: #ff3d57,
+  900: #ff3d57,
+  A100: #ff3d57,
+  A200: #ff3d57,
+  A400: #ff3d57,
+  A700: #ff3d57,
+  contrast: (
+    50: rgba(black, 0.87),
+    100: rgba(black, 0.87),
+    200: rgba(black, 0.87),
+    300: rgba(black, 0.87),
+    400: white,
+    500: white,
+    600: white,
+    700: white,
+    800: white,
+    900: white,
+    A100: rgba(black, 0.87),
+    A200: rgba(black, 0.87),
+    A400: rgba(black, 0.87),
+    A700: rgba(black, 0.87),
+  ),
+);
+
+// default, lighter and darker are all hue 500 (matches the production CSS, e.g. dark slide-toggle handles)
+$egret-primary: mat.define-palette($egret-primary-palette, 500, 500, 500);
+$egret-accent: mat.define-palette($egret-accent-palette, 500, 500, 500);
+$egret-warn: mat.define-palette($egret-warn-palette, 500, 500, 500);
+
+// A Sass list of quoted names: MDC prints it as "Inter", "Helvetica Neue", sans-serif and Material's interpolated
+// tokens as Inter, Helvetica Neue, sans-serif - both exactly as in the production CSS.
+$egret-font-family: ('Inter', 'Helvetica Neue', sans-serif);
+
+// mat.define-typography-level($font-size, $line-height, $font-weight, $font-family, $letter-spacing)
+$egret-typography: mat.define-typography-config(
+  $font-family: $egret-font-family,
+  $headline-1: mat.define-typography-level(1.875rem, 2.25rem, 800, $letter-spacing: normal),
+  $headline-2: mat.define-typography-level(1.25rem, 1.75rem, 700, $letter-spacing: normal),
+  $headline-3: mat.define-typography-level(1.125rem, 1.75rem, 600, $letter-spacing: normal),
+  $headline-4: mat.define-typography-level(0.875rem, 1.25rem, 600, $letter-spacing: normal),
+  $headline-5: mat.define-typography-level(0.875rem, 1.5rem, 500, $letter-spacing: normal),
+  $headline-6: mat.define-typography-level(0.875rem, 1.5rem, 500, $letter-spacing: normal),
+  $subtitle-1: mat.define-typography-level(1rem, 1.75rem, 500, $letter-spacing: normal),
+  $subtitle-2: mat.define-typography-level(0.875rem, 1.25rem, 600, $letter-spacing: normal),
+  $body-1: mat.define-typography-level(0.875rem, 1.5rem, 500, $letter-spacing: normal),
+  $body-2: mat.define-typography-level(0.875rem, 1.5rem, 500, $letter-spacing: normal),
+  $caption: mat.define-typography-level(0.75rem, 1rem, 500, $letter-spacing: normal),
+  $button: mat.define-typography-level(0.875rem, 0.875rem, 500, $letter-spacing: normal),
+  // overline is not observable in the CSS; Material default kept
+);
+
+// Merge background overrides into both `background` and `color.background` (Material 16 theme map shape).
+@function with-background($theme, $overrides) {
+  $bg: map.merge(map.get($theme, color, background), $overrides);
+  $theme: map.deep-merge($theme, (color: (background: $bg)));
+  @return map.merge($theme, (background: $bg));
+}
+
+
+$egret-navy-theme: mat.define-light-theme(
+  (
+    color: (
+      primary: $egret-primary,
+      accent: $egret-accent,
+      warn: $egret-warn,
+    ),
+    typography: $egret-typography,
+    density: 0,
+  )
+);
+$egret-navy-theme: with-background(
+  $egret-navy-theme,
+  (
+    app-bar: #ededed,
+    selected-button: #c7c7c7,
+    selected-disabled-button: #aeaeae,
+    hover: rgba(#2c2c2c, 0.04),
+    disabled-button-toggle: #e1e1e1,
+  )
+);
+
+$egret-navy-dark-theme: mat.define-dark-theme(
+  (
+    color: (
+      primary: $egret-primary,
+      accent: $egret-accent,
+      warn: $egret-warn,
+    ),
+    typography: $egret-typography,
+    density: 0,
+  )
+);
+$egret-navy-dark-theme: with-background(
+  $egret-navy-dark-theme,
+  (
+    background: #1a2038,
+    card: #222a49,
+    dialog: #222a49,
+    app-bar: #222a49,
+    raised-button: #222a49,
+    selected-button: #3a487e,
+    selected-disabled-button: #4b5ca0,
+    hover: rgba(#fafafa, 0.04),
+    disabled-button-toggle: #2a345b,
+  )
+);
+
+// ---- Root (unscoped): core + typography + density – matches reference nodes 1024-1204 ----
+@include mat.core();
+@include mat.all-component-typographies($egret-typography);
+@include mat.all-component-densities(0);
+@include mat.typography-hierarchy($egret-typography);
+
+// ---- Theme classes put on <body> by ThemeService (default: egret-navy) ----
+.egret-navy {
+  color: rgba(0, 0, 0, 0.87);
+  @include mat.all-component-colors($egret-navy-theme);
+}
+
+.egret-navy-dark {
+  color: #fff;
+  @include mat.all-component-colors($egret-navy-dark-theme);
+}
+
+// Datepicker header buttons use the 40px icon-button density in production
+.mat-calendar-controls .mat-mdc-icon-button.mat-mdc-button-base {
+  --mdc-icon-button-state-layer-size: 40px;
+  width: var(--mdc-icon-button-state-layer-size);
+  height: var(--mdc-icon-button-state-layer-size);
+  padding: 8px;
+
+  .mat-mdc-button-touch-target {
+    display: none;
+  }
+}

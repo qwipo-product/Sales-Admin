@@ -1,0 +1,8 @@
+<div class="m-4"></div>
+<div class="mat-box-shadow m-4">
+  <div class="flex p-4" *ngFor="let country of countries$ | async">
+    <div class="mr-32">{{ country.flag }}</div>
+    <div class="mr-32">{{ country.name.common }}</div>
+    <div><span class="text-muted">Official Name:</span> {{ country.name.official }}</div>
+  </div>
+</div>

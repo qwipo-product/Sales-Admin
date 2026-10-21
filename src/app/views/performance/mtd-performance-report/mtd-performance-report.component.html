@@ -1,0 +1,159 @@
+<ng-container *ngIf="permissionObj?.view">
+  <div class="row">
+    <div class="col-md-6">
+      <h2 class="card-title m-3">Sales Person Report</h2>
+    </div>
+    <div class="col-md-6 text-right">
+      <button
+        *ngIf="permissionObj?.export"
+        mat-raised-button
+        type="button"
+        class="mr-4"
+        color="primary"
+        style="min-width: 45px !important; height: 50px !important"
+        (click)="generateExcel()"
+      >
+        Download Excel
+      </button>
+    </div>
+  </div>
+
+  <div class="m-3">
+    <div class="mat-elevation-z8">
+      <div class="table-container p-10">
+        <form [formGroup]="form">
+          <div class="row">
+            <div class="col-md-4">
+              <mat-form-field class="full-width">
+                <input
+                  matInput
+                  formControlName="selectedDate"
+                  placeholder="Select Date"
+                  [matDatepicker]="appDatepicker1"
+                  [readonly]="true"
+                />
+                <mat-datepicker-toggle matSuffix [for]="appDatepicker1"></mat-datepicker-toggle>
+              </mat-form-field>
+              <mat-datepicker #appDatepicker1></mat-datepicker>
+            </div>
+
+            <div class="col-md-4">
+              <mat-form-field class="full-width">
+                <mat-label>Sales Person</mat-label>
+                <mat-select multiple #salesPersonSelectRef (selectionChange)="getSelectedSalesPerson()">
+                  <mat-option *ngFor="let salesPerson of salesPersonList" [value]="salesPerson">
+                    {{ salesPerson.name }}
+                  </mat-option>
+                </mat-select>
+              </mat-form-field>
+            </div>
+
+            <div class="col-md-4" style="display: flex; align-items: center">
+              <div class="text-left" style="padding: 0 0 20px 15px">
+                <button
+                  *ngIf="permissionObj?.view"
+                  mat-raised-button
+                  color="primary"
+                  class="text-center ml"
+                  style="min-width: 160px !important; height: 50px !important"
+                  (click)="search()"
+                >
+                  Search
+                </button>
+              </div>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Empty state (also shown before the first search) -->
+  <div class="m-3" *ngIf="!isDataSearched">
+    <div class="mat-elevation-z8">
+      <div class="table-container p-10">
+        <span>There Is No data</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="m-3" *ngIf="isDataSearched">
+    <div class="mat-elevation-z8">
+      <div class="table-container">
+        <div class="row">
+          <mat-accordion>
+            <mat-expansion-panel>
+              <mat-expansion-panel-header>
+                <mat-panel-title> MTD Revenue Report </mat-panel-title>
+              </mat-expansion-panel-header>
+              <mat-table mat-table matSort #mtdRevenueSort="matSort" class="mat-elevation-z8 mattable" [dataSource]="dataSources.mtdRevenueReport">
+                <ng-container *ngFor="let column of columns.mtdRevenueReport" [matColumnDef]="column">
+                  <th mat-header-cell *matHeaderCellDef mat-sort-header>{{ column }}</th>
+                  <td mat-cell *matCellDef="let element">{{ element[column] }}</td>
+                </ng-container>
+                <tr mat-header-row *matHeaderRowDef="columns.mtdRevenueReport"></tr>
+                <tr mat-row *matRowDef="let row; columns: columns.mtdRevenueReport"></tr>
+              </mat-table>
+            </mat-expansion-panel>
+            <mat-expansion-panel>
+              <mat-expansion-panel-header>
+                <mat-panel-title> Monthly Customer Report </mat-panel-title>
+              </mat-expansion-panel-header>
+              <mat-table mat-table matSort #monthlyCustomerSort="matSort" class="mat-elevation-z8 mattable" [dataSource]="dataSources.monthlyCustomerReport">
+                <ng-container *ngFor="let column of columns.monthlyCustomerReport" [matColumnDef]="column">
+                  <th mat-header-cell *matHeaderCellDef mat-sort-header>{{ column }}</th>
+                  <td mat-cell *matCellDef="let element">{{ element[column] }}</td>
+                </ng-container>
+                <tr mat-header-row *matHeaderRowDef="columns.monthlyCustomerReport"></tr>
+                <tr mat-row *matRowDef="let row; columns: columns.monthlyCustomerReport"></tr>
+              </mat-table>
+            </mat-expansion-panel>
+            <mat-expansion-panel>
+              <mat-expansion-panel-header>
+                <mat-panel-title> Daily Performance Incentive Report </mat-panel-title>
+              </mat-expansion-panel-header>
+              <mat-table mat-table matSort #dailyPerformanceIncentiveSort="matSort" class="mat-elevation-z8 mattable" [dataSource]="dataSources.dailyPerformanceIncentiveReport">
+                <ng-container *ngFor="let column of columns.dailyPerformanceIncentiveReport" [matColumnDef]="column">
+                  <th mat-header-cell *matHeaderCellDef mat-sort-header>{{ column }}</th>
+                  <td mat-cell *matCellDef="let element">{{ element[column] }}</td>
+                </ng-container>
+                <tr mat-header-row *matHeaderRowDef="columns.dailyPerformanceIncentiveReport"></tr>
+                <tr mat-row *matRowDef="let row; columns: columns.dailyPerformanceIncentiveReport"></tr>
+              </mat-table>
+            </mat-expansion-panel>
+            <mat-expansion-panel>
+              <mat-expansion-panel-header>
+                <mat-panel-title> Daily Customers Report </mat-panel-title>
+              </mat-expansion-panel-header>
+              <mat-table mat-table matSort #dailyCustomersSort="matSort" class="mat-elevation-z8 mattable" [dataSource]="dataSources.dailyCustomersReport">
+                <ng-container *ngFor="let column of columns.dailyCustomersReport" [matColumnDef]="column">
+                  <th mat-header-cell *matHeaderCellDef mat-sort-header>{{ column }}</th>
+                  <td mat-cell *matCellDef="let element">{{ element[column] }}</td>
+                </ng-container>
+                <tr mat-header-row *matHeaderRowDef="columns.dailyCustomersReport"></tr>
+                <tr mat-row *matRowDef="let row; columns: columns.dailyCustomersReport"></tr>
+              </mat-table>
+            </mat-expansion-panel>
+            <mat-expansion-panel>
+              <mat-expansion-panel-header>
+                <mat-panel-title> Monthly Incentive Report </mat-panel-title>
+              </mat-expansion-panel-header>
+              <mat-table mat-table matSort #monthlyIncentiveSort="matSort" class="mat-elevation-z8 mattable" [dataSource]="dataSources.monthlyIncentiveReport">
+                <ng-container *ngFor="let column of columns.monthlyIncentiveReport" [matColumnDef]="column">
+                  <th mat-header-cell *matHeaderCellDef mat-sort-header>{{ column }}</th>
+                  <td mat-cell *matCellDef="let element">{{ element[column] }}</td>
+                </ng-container>
+                <tr mat-header-row *matHeaderRowDef="columns.monthlyIncentiveReport"></tr>
+                <tr mat-row *matRowDef="let row; columns: columns.monthlyIncentiveReport"></tr>
+              </mat-table>
+            </mat-expansion-panel>
+          </mat-accordion>
+        </div>
+      </div>
+    </div>
+  </div>
+</ng-container>
+
+<ng-container *ngIf="!permissionObj?.view">
+  <p class="text-center">You dont have permission , Please contact administrator</p>
+</ng-container>

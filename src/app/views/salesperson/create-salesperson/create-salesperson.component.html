@@ -1,0 +1,142 @@
+<ng-container *ngIf="permissionObj?.view">
+  <div class="heading-block">
+    <div class="row">
+      <div class="col-md-6">
+        <mat-icon class="backicon" [routerLink]="['/salesperson-list']">arrow_back</mat-icon>
+        <span class="header">
+          <h2 class="card-title m-3">Create Salesperson</h2>
+        </span>
+      </div>
+      <div class="col-md-6 text-right"></div>
+    </div>
+  </div>
+
+  <div class="table-block">
+    <form [formGroup]="dataSource">
+      <section id="content">
+        <div class="card">
+          <div class="card-body card-padding">
+            <div class="row">
+              <div class="col-md-6">
+                <mat-form-field class="full-width">
+                  <mat-label>Name</mat-label>
+                  <input matInput type="string" formControlName="name" name="name" placeholder="Name" />
+                </mat-form-field>
+              </div>
+              <div class="col-md-6">
+                <mat-form-field class="full-width">
+                  <mat-label>Business Name</mat-label>
+                  <input
+                    matInput
+                    type="string"
+                    formControlName="businessName"
+                    name="businessName"
+                    placeholder="Business Name"
+                  />
+                </mat-form-field>
+              </div>
+              <div class="col-md-6">
+                <mat-form-field class="full-width">
+                  <mat-label>Mobile Number</mat-label>
+                  <input
+                    matInput
+                    type="number"
+                    formControlName="mobileNumber"
+                    name="mobileNumber"
+                    placeholder="Mobile Number"
+                  />
+                </mat-form-field>
+              </div>
+              <div class="col-md-6">
+                <mat-form-field class="full-width">
+                  <mat-label>Email</mat-label>
+                  <input
+                    matInput
+                    type="string"
+                    formControlName="salespersonEmail"
+                    name="salespersonEmail"
+                    placeholder="Email"
+                  />
+                </mat-form-field>
+              </div>
+              <div class="col-md-6">
+                <mat-form-field class="full-width">
+                  <mat-label>Pin Code</mat-label>
+                  <input matInput type="number" formControlName="pinCode" name="pinCode" placeholder="Pin Code" />
+                </mat-form-field>
+              </div>
+              <div class="col-md-6">
+                <mat-form-field class="full-width">
+                  <mat-label>Street</mat-label>
+                  <input matInput type="string" formControlName="street" name="street" placeholder="Street" />
+                </mat-form-field>
+              </div>
+              <div class="col-md-6">
+                <mat-form-field class="full-width">
+                  <mat-label>Land Mark</mat-label>
+                  <input matInput type="string" formControlName="landmark" name="landmark" placeholder="Land Mark" />
+                </mat-form-field>
+              </div>
+              <div class="col-md-6">
+                <mat-form-field class="full-width">
+                  <mat-label>Area</mat-label>
+                  <input matInput type="string" formControlName="area" name="area" placeholder="Area" />
+                </mat-form-field>
+              </div>
+              <div class="col-md-6">
+                <mat-form-field class="full-width">
+                  <mat-label>City</mat-label>
+                  <input matInput type="string" formControlName="city" name="city" placeholder="City" />
+                </mat-form-field>
+              </div>
+              <div class="col-md-6">
+                <mat-form-field class="full-width">
+                  <mat-label>select State</mat-label>
+                  <mat-select formControlName="state">
+                    <ng-container *ngFor="let state of states">
+                      <mat-option [value]="state.name">{{ state.name }}</mat-option>
+                    </ng-container>
+                  </mat-select>
+                </mat-form-field>
+              </div>
+              <div class="col-md-6">
+                <mat-form-field class="full-width">
+                  <mat-label>Latitude</mat-label>
+                  <input matInput formControlName="latitude" name="latitude" placeholder="Latitude" type="number" />
+                </mat-form-field>
+              </div>
+              <div class="col-md-6">
+                <mat-form-field class="full-width">
+                  <mat-label>Longitude</mat-label>
+                  <input matInput formControlName="longitude" name="longitude" placeholder="Longitude" type="number" />
+                </mat-form-field>
+              </div>
+              <div class="col-md-6">
+                <mat-form-field class="full-width">
+                  <mat-label>Status</mat-label>
+                  <mat-select formControlName="status">
+                    <mat-option *ngFor="let status of salesPersonStatus" [value]="status">
+                      {{ status === 0 ? 'InActive' : 'Active' }}
+                    </mat-option>
+                  </mat-select>
+                </mat-form-field>
+              </div>
+
+              <div class="row">
+                <div class="buttonSection">
+                  <button mat-raised-button color="primary" class="text-center ml" (click)="saveCustomer()">
+                    Save
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </form>
+  </div>
+</ng-container>
+
+<ng-container *ngIf="!permissionObj?.view">
+  <p class="text-center">You don't have permission , Please contact administrator</p>
+</ng-container>

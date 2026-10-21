@@ -1,0 +1,18 @@
+{
+  "env": "dev",
+  "firebaseConfig": {
+    "apiKey": "<firebase web api key>",
+    "authDomain": "<project-id>.firebaseapp.com",
+    "databaseURL": "https://<project-id>-default-rtdb.firebaseio.com",
+    "projectId": "<project-id>",
+    "storageBucket": "<project-id>.appspot.com",
+    "messagingSenderId": "<sender id>",
+    "appId": "<app id>"
+  },
+  "ssoUrl": "https://<sso host>",
+  "cloudFunctionsUrl": "https://<region>-<project-id>.cloudfunctions.net",
+  "coreUrl": "https://<core api host>",
+  "coreApiUrl": "https://<core api host (Customer/* endpoints)>",
+  "authServiceApiUrl": "https://<auth service host>",
+  "messagingServiceUrl": "https://<messaging service endpoint>"
+}

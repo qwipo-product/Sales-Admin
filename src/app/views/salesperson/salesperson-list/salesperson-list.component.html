@@ -1,0 +1,109 @@
+<ng-container *ngIf="permissionObj?.view">
+  <div class="row">
+    <div class="col-md-6">
+      <h2 class="card-title m-3">Sales Person List</h2>
+    </div>
+    <div class="col-md-6">
+      <button
+        mat-raised-button
+        color="primary"
+        class="mr-8 p-1"
+        style="float: right; padding-left: 10px; padding-right: 10px"
+        (click)="createSalesperson()"
+      >
+        Create Sales Person
+      </button>
+    </div>
+  </div>
+
+  <div
+    class="m-3 flex flex-col md:flex-row justify-between"
+    style="clear: both"
+    [@animate]="{ value: '*', params: { y: '50px', delay: '300ms' } }"
+  >
+    <mat-card class="p-0">
+      <mat-card-content class="p-0">
+        <mat-sidenav-container fxFlex="0 1 auto">
+          <!-- Unused leftover from the Egret template: never opened, no toggle anywhere. -->
+          <mat-sidenav #sidenav position="start" mode="side" opened="false" class="width-30 p-6">
+            SIDENAV CONTENT HERE
+          </mat-sidenav>
+          <mat-sidenav-content>
+            <div class="mat-elevation-z8">
+              <div class="table-container">
+                <mat-table matSort [dataSource]="dataSource">
+                  <ng-container matColumnDef="salesPersonName">
+                    <mat-header-cell *matHeaderCellDef> Sales Person Name </mat-header-cell>
+                    <mat-cell *matCellDef="let row" data-label="salesPersonName"> {{ row.name }} </mat-cell>
+                  </ng-container>
+
+                  <ng-container matColumnDef="mobileNumber">
+                    <mat-header-cell *matHeaderCellDef>Mobile Number </mat-header-cell>
+                    <mat-cell *matCellDef="let row" data-label="mobileNumber"> {{ row.mobileNumber }} </mat-cell>
+                  </ng-container>
+
+                  <ng-container matColumnDef="leadName">
+                    <mat-header-cell *matHeaderCellDef> Lead Name </mat-header-cell>
+                    <mat-cell *matCellDef="let row" data-label="leadName"> {{ row.salesLeadName }} </mat-cell>
+                  </ng-container>
+
+                  <ng-container matColumnDef="salesManager">
+                    <mat-header-cell *matHeaderCellDef>Sales Manager </mat-header-cell>
+                    <mat-cell *matCellDef="let row" data-label="salesManager"> {{ row.salesManagerName }} </mat-cell>
+                  </ng-container>
+
+                  <ng-container matColumnDef="action">
+                    <mat-header-cell *matHeaderCellDef> Action</mat-header-cell>
+                    <mat-cell *matCellDef="let row">
+                      <button mat-raised-button color="primary" (click)="editSalespersonPopUp(row.id)">
+                        {{ row.salesLeadName || row.salesManagerName ? 'Edit Lead' : 'Add Lead' }}
+                      </button>
+                      <button
+                        mat-raised-button
+                        color="primary"
+                        style="margin-left: 5px"
+                        (click)="editSalespersonProfile(row.id)"
+                      >
+                        Edit Profile
+                      </button>
+                    </mat-cell>
+                  </ng-container>
+
+                  <ng-container matColumnDef="enableLogOut">
+                    <mat-header-cell *matHeaderCellDef>Force Logout </mat-header-cell>
+                    <mat-cell *matCellDef="let row" data-label="enableLogOut">
+                      <button
+                        mat-raised-button
+                        class="mr-8 p-1"
+                        style="background-color: darkgray"
+                        *ngIf="row.enableLogOut"
+                      >
+                        Logout enabled
+                      </button>
+                      <button
+                        mat-raised-button
+                        class="mr-8 p-1"
+                        color="primary"
+                        *ngIf="!row.enableLogOut"
+                        (click)="salespersonForceLogout(row)"
+                      >
+                        Enable logout
+                      </button>
+                    </mat-cell>
+                  </ng-container>
+
+                  <mat-header-row *matHeaderRowDef="displayedColumns"></mat-header-row>
+                  <mat-row *matRowDef="let row; columns: displayedColumns"></mat-row>
+                </mat-table>
+              </div>
+            </div>
+          </mat-sidenav-content>
+        </mat-sidenav-container>
+      </mat-card-content>
+    </mat-card>
+  </div>
+</ng-container>
+
+<ng-container *ngIf="!permissionObj?.view">
+  <p class="text-center">You don't have permission , Please contact administrator</p>
+</ng-container>

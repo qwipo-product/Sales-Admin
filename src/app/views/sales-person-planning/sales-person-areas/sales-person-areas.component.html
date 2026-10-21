@@ -1,0 +1,86 @@
+<ng-container *ngIf="permissionObj?.view">
+  <div class="row">
+    <div class="col-md-6"></div>
+    <div class="col-md-6 text-right">
+      <button mat-raised-button class="m-2" color="primary" (click)="addCluster()" *ngIf="permissionObj?.create"> Add Area </button>
+      <button mat-raised-button class="m-2" color="primary" (click)="addPolygonToClustersPopUp()" *ngIf="permissionObj?.create">
+        Upload Geo Json
+      </button>
+      <button mat-raised-button class="m-2 mr-8" color="primary" (click)="refreshAllClusters()" *ngIf="permissionObj?.create">
+        Sync All Areas
+      </button>
+    </div>
+  </div>
+  <div class="m-3 flex-col md:flex-row justify-between" style="clear: both">
+    <mat-card class="p-0">
+      <mat-card-content class="p-0">
+        <mat-sidenav-container fxFlex="0 1 auto">
+          <mat-sidenav #sidenav position="start" mode="side" opened="false" class="width-30 p-6"> SIDENAV CONTENT HERE </mat-sidenav>
+          <mat-sidenav-content>
+            <div class="mat-elevation-z8">
+              <div class="table-container">
+                <mat-table matSort [dataSource]="dataSource">
+                  <ng-container matColumnDef="id">
+                    <mat-header-cell *matHeaderCellDef>Id </mat-header-cell>
+                    <mat-cell *matCellDef="let element" data-label="id">{{ element.id }} </mat-cell>
+                  </ng-container>
+
+                  <ng-container matColumnDef="name">
+                    <mat-header-cell *matHeaderCellDef> Area Name </mat-header-cell>
+                    <mat-cell *matCellDef="let element" data-label="name" class="editIconCell">
+                      <div class="cell-content">{{ element.name }}</div>
+                      <mat-icon class="areacodeeditIcon" (click)="updateClusterName(element)" *ngIf="permissionObj?.edit">edit</mat-icon>
+                    </mat-cell>
+                  </ng-container>
+
+                  <ng-container matColumnDef="type">
+                    <mat-header-cell *matHeaderCellDef> Type </mat-header-cell>
+                    <mat-cell *matCellDef="let element" data-label="type">{{ element.type | ClusterTypePipe }} </mat-cell>
+                  </ng-container>
+
+                  <ng-container matColumnDef="customerCount">
+                    <mat-header-cell *matHeaderCellDef> Customer Count </mat-header-cell>
+                    <mat-cell *matCellDef="let element" data-label="customerCount">{{ element.customerCount }} </mat-cell>
+                  </ng-container>
+
+                  <ng-container matColumnDef="updateJson">
+                    <mat-header-cell *matHeaderCellDef> Update Polygon </mat-header-cell>
+                    <mat-cell *matCellDef="let element" data-label="updateJson">
+                      <button mat-icon-button (click)="updateClusterCoordinates(element)" *ngIf="permissionObj?.edit">
+                        <mat-icon>cloud_upload</mat-icon>
+                      </button>
+                    </mat-cell>
+                  </ng-container>
+
+                  <ng-container matColumnDef="delete">
+                    <mat-header-cell *matHeaderCellDef> Delete</mat-header-cell>
+                    <mat-cell *matCellDef="let element" data-label="delete">
+                      <button mat-icon-button (click)="deleteCluster(element)" *ngIf="permissionObj?.delete">
+                        <mat-icon class="deleteicon" style="color: red">delete</mat-icon>
+                      </button>
+                    </mat-cell>
+                  </ng-container>
+
+                  <ng-container matColumnDef="refresh">
+                    <mat-header-cell *matHeaderCellDef> Refresh</mat-header-cell>
+                    <mat-cell *matCellDef="let element" data-label="delete">
+                      <button mat-icon-button (click)="refreshClusterCustomers(element)">
+                        <span class="material-icons">refresh</span>
+                      </button>
+                    </mat-cell>
+                  </ng-container>
+
+                  <mat-header-row *matHeaderRowDef="displayedColumns"></mat-header-row>
+                  <mat-row *matRowDef="let row; columns: displayedColumns"></mat-row>
+                </mat-table>
+              </div>
+            </div>
+          </mat-sidenav-content>
+        </mat-sidenav-container>
+      </mat-card-content>
+    </mat-card>
+  </div>
+</ng-container>
+<ng-container *ngIf="!permissionObj?.view">
+  <p class="text-center">You dont have permission , Please contact administrator</p>
+</ng-container>

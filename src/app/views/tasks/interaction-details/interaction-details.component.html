@@ -1,0 +1,117 @@
+<div class="row">
+  <div class="col-md-6">
+    <h2 class="card-title m-3 text-violet">Interaction Details</h2>
+  </div>
+  <div class="col-md-6">
+    <mat-icon class="float-right m-3 closeicon" (click)="dialogRef.close()">close</mat-icon>
+  </div>
+</div>
+
+<div
+  class="m-3 flex flex-col md:flex-row justify-between"
+  style="clear: both"
+  [@animate]="{ value: '*', params: { y: '50px', delay: '300ms' } }"
+>
+  <mat-card class="p-0">
+    <mat-card-content class="p-0">
+      <mat-sidenav-container fxFlex="0 1 auto">
+        <mat-sidenav-content>
+          <div class="table-container">
+            <mat-table matSort [dataSource]="dataSource">
+              <ng-container matColumnDef="date">
+                <mat-header-cell *matHeaderCellDef> Date </mat-header-cell>
+                <mat-cell *matCellDef="let element" data-label="date">{{ element.date }} </mat-cell>
+              </ng-container>
+
+              <ng-container matColumnDef="customerId">
+                <mat-header-cell *matHeaderCellDef> Customer Id </mat-header-cell>
+                <mat-cell *matCellDef="let element" data-label="customerId"> {{ element.customerId }} </mat-cell>
+              </ng-container>
+
+              <ng-container matColumnDef="businessName">
+                <mat-header-cell *matHeaderCellDef> Business Name </mat-header-cell>
+                <mat-cell *matCellDef="let element" data-label="businessName"> {{ element.businessName }} </mat-cell>
+              </ng-container>
+
+              <ng-container matColumnDef="mobileNumber">
+                <mat-header-cell *matHeaderCellDef> Mobile Number </mat-header-cell>
+                <mat-cell *matCellDef="let element" data-label="mobileNumber"> {{ element.mobileNumber }} </mat-cell>
+              </ng-container>
+
+              <ng-container matColumnDef="salesPersonName">
+                <mat-header-cell *matHeaderCellDef> Sales Person Name </mat-header-cell>
+                <mat-cell *matCellDef="let element" data-label="salesPersonName"> {{ element.salesPersonName }} </mat-cell>
+              </ng-container>
+
+              <ng-container matColumnDef="salesPersonMobileNumber">
+                <mat-header-cell *matHeaderCellDef> Sales Person Mobile Number </mat-header-cell>
+                <mat-cell *matCellDef="let element" data-label="salesPersonMobileNumber">
+                  {{ element.salesPersonMobileNumber }}
+                </mat-cell>
+              </ng-container>
+
+              <ng-container matColumnDef="interactionCategory">
+                <mat-header-cell *matHeaderCellDef> Interaction Category </mat-header-cell>
+                <mat-cell *matCellDef="let element" data-label="interactionCategory">
+                  {{ element.interactionCategory }}
+                </mat-cell>
+              </ng-container>
+
+              <ng-container matColumnDef="comments">
+                <mat-header-cell *matHeaderCellDef> Comments </mat-header-cell>
+                <mat-cell *matCellDef="let element" data-label="comments"> {{ element.comments }} </mat-cell>
+              </ng-container>
+
+              <ng-container matColumnDef="imageUrl">
+                <mat-header-cell *matHeaderCellDef> Image </mat-header-cell>
+                <mat-cell *matCellDef="let element" data-label="imageUrl">
+                  <img alt="Image" height="5" style="cursor: pointer" [src]="element.imageUrl" />
+                </mat-cell>
+              </ng-container>
+
+              <ng-container matColumnDef="customerVisitDuration">
+                <mat-header-cell *matHeaderCellDef> Customer Visit Duration </mat-header-cell>
+                <mat-cell *matCellDef="let element" data-label="customerVisitDuration">
+                  {{ element.customerVisitDuration }}
+                </mat-cell>
+              </ng-container>
+
+              <ng-container matColumnDef="checkInTime">
+                <mat-header-cell *matHeaderCellDef> Check In Time </mat-header-cell>
+                <mat-cell *matCellDef="let element" data-label="checkInTime"> {{ element.checkInTime }} </mat-cell>
+              </ng-container>
+
+              <ng-container matColumnDef="checkOutTime">
+                <mat-header-cell *matHeaderCellDef> Check Out Time </mat-header-cell>
+                <mat-cell *matCellDef="let element" data-label="checkOutTime"> {{ element.checkOutTime }} </mat-cell>
+              </ng-container>
+
+              <ng-container matColumnDef="checkInLocation">
+                <mat-header-cell *matHeaderCellDef> Check In Location </mat-header-cell>
+                <mat-cell *matCellDef="let element" data-label="CheckInLocation"> {{ element.checkInLocation }} </mat-cell>
+              </ng-container>
+
+              <ng-container matColumnDef="checkOutLocation">
+                <mat-header-cell *matHeaderCellDef> Check Out Location </mat-header-cell>
+                <mat-cell *matCellDef="let element" data-label="checkOutLocation"> {{ element.checkOutLocation }} </mat-cell>
+              </ng-container>
+
+              <ng-container matColumnDef="checkInDistance">
+                <mat-header-cell *matHeaderCellDef> Check In Distance </mat-header-cell>
+                <mat-cell *matCellDef="let element" data-label="checkInDistance"> {{ element.checkInDistance }} </mat-cell>
+              </ng-container>
+
+              <ng-container matColumnDef="checkOutDistance">
+                <mat-header-cell *matHeaderCellDef> Check Out Distance </mat-header-cell>
+                <mat-cell *matCellDef="let element" data-label="checkOutDistance"> {{ element.checkOutDistance }} </mat-cell>
+              </ng-container>
+
+              <mat-header-row *matHeaderRowDef="displayedColumns"></mat-header-row>
+              <mat-row *matRowDef="let row; columns: displayedColumns"></mat-row>
+            </mat-table>
+          </div>
+        </mat-sidenav-content>
+      </mat-sidenav-container>
+    </mat-card-content>
+  </mat-card>
+</div>
