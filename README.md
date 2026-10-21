@@ -82,6 +82,8 @@ docs/
   FIXES.md                    every behaviour that intentionally differs from production (bug fixes)
   ENHANCEMENTS.md             new features and the backend changes they need
   reconstruction/             notes from the reconstruction: routes, backend calls, data fields, styles
+e2e/                          Playwright regression suite (see "Tests"); fixtures.ts has the shared helpers
+playwright.config.ts          starts ng serve on a free port, Chromium 1440×900
 ```
 
 ## How the backend is wired
@@ -93,6 +95,25 @@ All data access goes through four places, as in the original app:
 - **`HttpClient`**: REST calls. `TokenInterceptor` adds the API bearer token from the auth service.
 
 `backend.providers.ts` swaps the first three, plus a REST interceptor, for the sample-data versions in `src/app/mock` when `env` is `"mock"`. Feature code doesn't know which backend it's talking to. Menu items and page actions are gated by the same `permission$` map as in production (page ids in `shared/constants/page-ids.ts`).
+
+## Tests
+
+`e2e/` holds an end-to-end regression suite (Playwright, headless Chromium, 1440×900). It covers sign-in/out and the route guard, Sales Person, Attendance, Task Report and Task Details, Interactions, Performance and Planning, including the Excel exports.
+
+```bash
+npx playwright install chromium
+```
+
+```bash
+npm run e2e
+```
+
+- The first command is needed once per machine. `npm run e2e` starts `ng serve` on a free port, runs every spec, and stops the server. It needs `"env": "mock"` in `src/assets/configs/config.json`.
+- Every test starts with an empty localStorage, so the sample data is fresh. The browser clock is fixed at Wednesday 21 October 2026, 14:00 IST, so the generated data is the same on every run.
+- On a failure, the screenshot, trace and page snapshot are in `e2e/.results/`. The HTML report is in `e2e/.report/` (`npx playwright show-report e2e/.report`).
+- To run one file or watch the browser, use `npx playwright test e2e/planning.spec.ts --headed`. To use a server that is already running, set `E2E_BASE_URL`, e.g. `E2E_BASE_URL=http://localhost:4200 npm run e2e`.
+- `e2e/known-bugs.spec.ts` lists bugs the suite found that are not fixed yet. Each one is marked as an expected failure, so it shows as passing until the bug is fixed. Then it fails, and you remove its `test.fail()` line.
+  - After an alert that opens while "Please wait" is showing (e.g. a Create Salesperson validation message), `<app-root>` keeps `aria-hidden="true"`. The page then stays hidden from screen readers until it is reloaded.
 
 ## Build
 

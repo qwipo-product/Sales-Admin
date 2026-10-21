@@ -73,9 +73,35 @@ export function tab(scope: Page | Locator, text: string): Locator {
   return scope.locator('[role="tab"]', { hasText: exactText(text) });
 }
 
-/** Opens an admin page and waits for the "Please wait" loader (if any) to go away. */
+/**
+ * The sample database writes its changes to localStorage on a 200 ms debounce (src/app/mock/mock-database.ts). Wait
+ * for that before leaving the page, or a change made just before a reload would be lost.
+ */
+export async function waitForSampleDbSaved(page: Page) {
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const db = (window as any).salesAdminMock?.db;
+        if (!db) return true;
+        const overlay = db.overlay;
+        const empty = !overlay.fs.length && !overlay.rtdb.length && !overlay.customers.length;
+        return empty || localStorage.getItem('salesAdminMockDb.v1') === JSON.stringify(overlay);
+      }),
+    )
+    .toBe(true);
+}
+
+/** Opens an admin page (after the current page's changes are saved) and waits for the "Please wait" loader. */
 export async function open(page: Page, path: string) {
+  await waitForSampleDbSaved(page);
   await page.goto(path);
+  await waitForLoader(page);
+}
+
+/** Reloads the page once the sample database has saved its changes. */
+export async function reload(page: Page) {
+  await waitForSampleDbSaved(page);
+  await page.reload();
   await waitForLoader(page);
 }
 
@@ -171,12 +197,13 @@ export async function selectOptionTexts(page: Page, field: Locator): Promise<str
 }
 
 /**
- * Picks a day in a Material datepicker: opens the toggle next to the input with `placeholder`, moves to the right
- * month and clicks the day (the inputs are read-only, so the calendar is the only way in).
+ * Picks a day in a Material datepicker: opens the toggle of `field` (the mat-form-field, or the placeholder of its
+ * input), moves to the right month and clicks the day. Most date inputs are read-only, so the calendar is the way in.
  */
-export async function pickDate(page: Page, placeholder: string, offset: number, scope: Page | Locator = page) {
+export async function pickDate(page: Page, field: string | Locator, offset: number, scope: Page | Locator = page) {
   const target = day(offset);
-  await fieldByPlaceholder(scope, placeholder).locator('mat-datepicker-toggle button').click();
+  const formField = typeof field === 'string' ? fieldByPlaceholder(scope, field) : field;
+  await formField.locator('mat-datepicker-toggle button').click();
   const calendar = page.locator('mat-calendar');
   await expect(calendar).toBeVisible();
   for (let i = 0; i < 36; i++) {

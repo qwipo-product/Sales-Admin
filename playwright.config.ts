@@ -2,7 +2,7 @@ import { defineConfig, devices } from '@playwright/test';
 import { execFileSync } from 'child_process';
 
 /**
- * End-to-end regression suite (see e2e/README section in the project README).
+ * End-to-end regression suite (see the "Tests" section of README.md).
  *
  * `npm run e2e` starts `ng serve` on a free port and runs every spec in headless Chromium at 1440x900 against the
  * built-in sample data (`src/assets/configs/config.json` must have `"env": "mock"`, the default).
@@ -42,7 +42,15 @@ export default defineConfig({
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
   },
-  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'], channel: 'chromium', viewport: { width: 1440, height: 900 } } }],
+  projects: [
+    {
+      name: 'chromium',
+      // Full Chromium (new headless mode) rather than the default headless shell: under parallel load the headless
+      // shell now and then failed to parse the 9 MB dev-server vendor.js (a random SyntaxError, the app never started)
+      // although the bytes it received were intact. Not seen with full Chromium in 165 runs.
+      use: { ...devices['Desktop Chrome'], channel: 'chromium', viewport: { width: 1440, height: 900 } },
+    },
+  ],
   webServer: process.env.E2E_BASE_URL
     ? undefined
     : {

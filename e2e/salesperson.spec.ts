@@ -9,6 +9,7 @@ import {
   fieldByLabel,
   heading,
   open,
+  reload,
   rows,
   selectOptions,
   selectOptionTexts,
@@ -69,8 +70,7 @@ test.describe('Sales Person list', () => {
     await expect(button(updated, 'Edit Lead')).toBeVisible();
 
     // Saved to the sample database: still there after a reload.
-    await page.reload();
-    await waitForLoader(page);
+    await reload(page);
     await expect(personRow(page, name).locator('.cdk-column-leadName')).toHaveText(leadOptions[0]);
   });
 
@@ -119,8 +119,7 @@ test.describe('Sales Person list', () => {
     await expect(button(row, 'Logout enabled')).toBeVisible();
     await expect(button(row, 'Enable logout')).toHaveCount(0);
 
-    await page.reload();
-    await waitForLoader(page);
+    await reload(page);
     await expect(button(personRow(page, name), 'Logout enabled')).toBeVisible();
     await expect(button(rows(page), 'Logout enabled')).toHaveCount(1);
   });
