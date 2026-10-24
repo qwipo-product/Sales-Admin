@@ -36,6 +36,7 @@ test.describe('Sign-in, sign-out and the route guard', () => {
       ['Sales Person List', /\/salesperson-list$/, 'Sales Person List'],
       ['Attendance', /\/attendance-report$/, 'Approval Request'],
       ['Planning', /\/salesperson-planning$/, 'Areas'],
+      ['Reschedule Tasks', /\/reschedule-tasks$/, 'Reschedule Tasks'],
       ['Tasks', /\/task-report$/, 'Task Report'],
       ['Interactions', /\/interaction-list$/, 'Interactions'],
       ['Performance Report', /\/performance$/, 'Sales Person Report'],

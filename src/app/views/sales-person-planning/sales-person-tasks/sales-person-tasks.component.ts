@@ -1,51 +1,34 @@
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { FormBuilder, FormControl, FormGroup } from '@angular/forms';
 import { DateAdapter } from '@angular/material/core';
+import { MatDatepickerInputEvent } from '@angular/material/datepicker';
 import { MatDialog } from '@angular/material/dialog';
-import { Subject, Subscription, debounceTime, from, of, switchMap, takeUntil, catchError } from 'rxjs';
+import { Subject, Subscription, takeUntil } from 'rxjs';
 import Swal from 'sweetalert2';
 
 import { SalesPersonService } from '../../../shared/services/sales-person.service';
 import { AuthService } from '../../../shared/services/auth/auth.service';
 import { AppLoaderService } from '../../../shared/services/app-loader/app-loader.service';
 import { PageIds } from '../../../shared/constants/page-ids';
-import { BusinessType } from '../../../shared/models/enums';
+import { BusinessType, MessageQueueStatus } from '../../../shared/models/enums';
 // main 1972 helper names differ from the names this chunk was reconstructed with; aliased to keep the semantics:
 // customer status = Active/InActive, business status = Lost ... None, customer order status = days since last order.
 import {
+  formatDates as formatDatesToYMD,
   getCustomerStatusList as getBusinessStatusList,
   getBusinessTypeList as getBusinessTypes,
   getLastOrderDaysList as getCustomerOrderStatusList,
   getStatusList as getCustomerStatusList,
   showWarningAlert,
 } from '../../../shared/helpers/utils';
-import { GenerateTasksDialogComponent } from '../dialogs/generate-tasks-dialog/generate-tasks-dialog.component';
+import { PreviewDialogComponent } from '../dialogs/preview-dialog/preview-dialog.component';
 import { ScopedLoader } from '../services/scoped-loader';
-import {
-  CompanyOption,
-  CompanyShopShare,
-  GenerateTasksDialogData,
-  PagePermission,
-  SalesPerson,
-  ScheduleShop,
-  TaskFilters,
-} from '../models/sales-person-planning.models';
-
-type SelectAllState = 'checked' | 'indeterminate' | 'unchecked';
-
-const DEFAULT_TASKS_PER_DAY = 35;
-
-/** Company dot colours (Generate Tasks dialog), in the order the API lists the companies. */
-const COMPANY_COLORS = ['#a0522d', '#e53935', '#43a047', '#fb8c00', '#8e24aa', '#00897b', '#6d4c41', '#1e88e5', '#d81b60', '#546e7a'];
+import { GenerateTasksData, PagePermission, SalesPerson, SalesPersonCustomerCount } from '../models/sales-person-planning.models';
 
 /**
  * "Tasks" tab (selector `sales-person-tasks`, minified `Ry`).
- * The filters appear one after another: sales person (only those with an area) -> From / To date -> customer status
- * -> business status -> business type -> customer order status -> companies (loaded for those filters), then
- * "Generate" -> shops_for_schedule -> Generate Tasks dialog (sets, a day per set, schedule) -> "Assign schedule"
- * queues a CreateTasks message.
- * (The original picked dates one by one, chose sales persons and tasks/day in a table, had no Company filter, and
- * showed a "View Tasks Preview" table instead of the dialog.)
+ * Pick task dates + customer filters + sales persons (only those with an area) + tasks/day, then
+ * "Preview" -> count_by_salesperson -> Preview dialog -> "Generate Tasks" queues a CreateTasks message.
  */
 @Component({
   selector: 'sales-person-tasks',
@@ -54,24 +37,29 @@ const COMPANY_COLORS = ['#a0522d', '#e53935', '#43a047', '#fb8c00', '#8e24aa', '
 })
 export class SalesPersonTasksComponent implements OnInit, OnDestroy {
   pageId = PageIds.crm_salesperson_planning;
+  selectAllBusinessTypes = new FormControl(false); // unused
+  selectedDates: Date[] = [];
+  selectAllCheckbox = false;
   selectAllBusinessStatusCheckbox = false;
   selectAllBusinessTypeCheckbox = false;
+  /** Row selection state keyed by sales person id (also read with option names, see template). */
+  checkboxStates: { [key: string]: boolean } = {};
   businessTypesList = getBusinessTypes();
+  selectedBusinessTypes: any[] = [];
   businessStatusList = getBusinessStatusList();
+  selectedBusinessStatus: any[] = [];
   customerStatusList = getCustomerStatusList();
+  selectedCustomerStatus: any[] = [];
   customerOrderStatusList = getCustomerOrderStatusList();
-  companies: CompanyOption[] = [];
-  companiesLoading = false;
-  companiesError = false;
+  selectedCustomerOrderStatus: any[] = [];
+  selectedSalespersons: SalesPerson[] = [];
+  salesPersonColumns: string[] = ['checkbox', 'Name', 'Area Name', 'Customer Count', 'Tasks Count'];
   minDate: Date;
   salesPersonList: SalesPerson[];
   form: FormGroup;
   permissionObj: PagePermission;
   permissionSubscription: Subscription;
   private destroy$ = new Subject<void>();
-  private companyShare$ = new Subject<any>();
-  /** Filters the loaded company shares belong to ('' = none loaded for the current filters). */
-  private companiesKey = '';
   private loader: ScopedLoader;
 
   constructor(
@@ -92,13 +80,6 @@ export class SalesPersonTasksComponent implements OnInit, OnDestroy {
         this.permissionObj = permissions[this.pageId];
       }
     });
-    this.companyShare$
-      .pipe(
-        debounceTime(250),
-        switchMap((body) => from(this.salesPersonService.getCompanyShopShare(body)).pipe(catchError(() => of(undefined)))),
-        takeUntil(this.destroy$)
-      )
-      .subscribe((shares: CompanyShopShare[] | undefined) => this.setCompanies(shares));
     this.loader.open();
     try {
       this.salesPersonList = await this.getSalesPersonsWithArea();
@@ -118,17 +99,19 @@ export class SalesPersonTasksComponent implements OnInit, OnDestroy {
   }
 
   initializeForm() {
+    const checkboxControls = this.salesPersonList.reduce((controls: any, salesPerson) => {
+      controls[salesPerson.id] = new FormControl(false);
+      return controls;
+    }, {});
     this.form = this.fb.group({
-      salesPersonId: new FormControl<string | null>(null),
-      fromDate: new FormControl<Date | null>(null),
-      toDate: new FormControl<Date | null>(null),
+      selectAll: new FormControl(false),
+      checkboxes: this.fb.group(checkboxControls),
+      endDate: new FormControl(null),
       customerStatusSelectRef: new FormControl(null),
       businessStatusSelectRef: new FormControl(null),
       businessTypeSelectRef: new FormControl(null),
       customerOrderStatusRef: new FormControl(null),
-      companyIds: new FormControl<string[]>([]),
     });
-    this.form.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(() => this.refreshCompanies());
   }
 
   /** Only sales persons that already have an area (cluster) assigned. */
@@ -144,247 +127,257 @@ export class SalesPersonTasksComponent implements OnInit, OnDestroy {
 
   setDefaultTasksCount(salesPerson: SalesPerson) {
     if (salesPerson.tasksCount == null || isNaN(salesPerson.tasksCount)) {
-      salesPerson.tasksCount = DEFAULT_TASKS_PER_DAY;
+      salesPerson.tasksCount = 35;
     }
   }
 
-  private value(name: string): any {
-    return this.form?.get(name)?.value;
-  }
-
-  // ------------------------------------------------------------------------------------------- sales persons
-  /** Tasks are generated for one sales person at a time. */
-  get selectedSalesPersonId(): string | null {
-    return this.value('salesPersonId') || null;
-  }
-
-  get selectedSalesPerson(): SalesPerson | undefined {
-    return (this.salesPersonList || []).find((sp) => sp.id === this.selectedSalesPersonId);
-  }
-
-  // ------------------------------------------------------------------------------------------- one field after another
-  get showDates(): boolean {
-    return !!this.selectedSalesPerson;
-  }
-
-  get showCustomerStatus(): boolean {
-    return this.showDates && this.taskDates.length > 0;
-  }
-
-  get showBusinessStatus(): boolean {
-    return this.showCustomerStatus && this.selectedCustomerStatus.length > 0;
-  }
-
-  get showBusinessType(): boolean {
-    return this.showBusinessStatus && this.selectedBusinessStatus.length > 0;
-  }
-
-  get showCustomerOrderStatus(): boolean {
-    return this.showBusinessType && this.selectedBusinessTypes.length > 0;
-  }
-
-  /** The Company field (or its loader) appears once a customer order status is picked. */
-  get showCompanies(): boolean {
-    return this.showCustomerOrderStatus && this.selectedCustomerOrderStatus.length > 0;
-  }
-
-  // ------------------------------------------------------------------------------------------- dates
-  /** A To date before the new From date is cleared. */
-  onFromDateChange() {
-    const fromDate: Date = this.value('fromDate');
-    const toDate: Date = this.value('toDate');
-    if (fromDate && toDate && this.dateAdapter.compareDate(toDate, fromDate) < 0) {
-      this.form.get('toDate').setValue(null);
+  /** Datepicker (dateChange): add the picked date as a chip (a day that is already listed is not added again). */
+  onSelect(event: MatDatepickerInputEvent<Date>) {
+    const date = event.value;
+    if (date && !this.selectedDates.some((d) => new Date(d).toDateString() === new Date(date).toDateString())) {
+      this.selectedDates.push(date);
     }
   }
 
-  get toDateMin(): Date {
-    return this.value('fromDate') || this.minDate;
+  removeDate(index: number) {
+    this.selectedDates.splice(index, 1);
   }
 
-  /** Every day from the From date to the To date, both included. */
-  get taskDates(): Date[] {
-    const fromDate: Date = this.value('fromDate');
-    const toDate: Date = this.value('toDate');
-    if (!fromDate || !toDate || this.dateAdapter.compareDate(toDate, fromDate) < 0) {
-      return [];
+  toggleSelectAll() {
+    this.selectAllCheckbox = !this.selectAllCheckbox;
+    for (const salesPerson of this.salesPersonList) {
+      this.checkboxStates[salesPerson.id] = this.selectAllCheckbox;
     }
-    const dates: Date[] = [];
-    for (let day = fromDate; this.dateAdapter.compareDate(day, toDate) <= 0; day = this.dateAdapter.addCalendarDays(day, 1)) {
-      dates.push(day);
+    // Rebuilt instead of pushed, so rows that were already ticked are not selected twice.
+    this.selectedSalespersons = this.selectAllCheckbox ? [...this.salesPersonList] : [];
+  }
+
+  toggleCheckbox(salesPerson: SalesPerson) {
+    this.checkboxStates[salesPerson.id] = !this.checkboxStates[salesPerson.id];
+    if (this.checkboxStates[salesPerson.id]) {
+      this.selectedSalespersons.push(salesPerson);
+    } else {
+      const index = this.selectedSalespersons.findIndex((sp) => sp.id === salesPerson.id);
+      if (index !== -1) {
+        this.selectedSalespersons.splice(index, 1);
+      }
     }
-    return dates;
-  }
-
-  // ------------------------------------------------------------------------------------------- customer filters
-  get selectedCustomerStatus(): any[] {
-    return this.value('customerStatusSelectRef') || [];
-  }
-
-  get selectedBusinessStatus(): any[] {
-    return this.value('businessStatusSelectRef') || [];
-  }
-
-  get selectedBusinessTypes(): any[] {
-    return this.value('businessTypeSelectRef') || [];
-  }
-
-  get selectedCustomerOrderStatus(): any[] {
-    return this.value('customerOrderStatusRef') || [];
+    // checkboxStates only holds the rows toggled so far: check every row of the list.
+    this.selectAllCheckbox = this.salesPersonList.every((sp) => this.checkboxStates[sp.id]);
   }
 
   toggleSelectAllBusinessTypes() {
     this.selectAllBusinessTypeCheckbox = !this.selectAllBusinessTypeCheckbox;
-    this.form.get('businessTypeSelectRef').patchValue(this.selectAllBusinessTypeCheckbox ? this.businessTypesList.map((t) => t.value) : []);
+    if (this.selectAllBusinessTypeCheckbox) {
+      this.form.get('businessTypeSelectRef').patchValue(this.businessTypesList.map((t) => t.value));
+      this.selectedBusinessTypes = this.businessTypesList.map((t) => t.value);
+    } else {
+      this.form.get('businessTypeSelectRef').patchValue([]);
+      this.selectedBusinessTypes = [];
+    }
   }
 
-  /** Keeps the "Select All" checkbox in sync (also for keyboard selection). */
+  isAllBusinessTypesSelected(event: any) {
+    const selected = this.form.get('businessTypeSelectRef').value || [];
+    const all = this.businessTypesList.map((t) => t.value);
+    this.selectAllBusinessTypeCheckbox = selected.length === all.length;
+  }
+
   getSelectedBusinessTypes() {
-    this.selectAllBusinessTypeCheckbox = this.selectedBusinessTypes.length === this.businessTypesList.length;
+    this.selectedBusinessTypes = this.form.controls['businessTypeSelectRef']?.value || [];
+    // Keeps the (unbound) "Select All" checkbox in sync for keyboard selection too (option (click) is mouse-only).
+    this.isAllBusinessTypesSelected(null);
   }
 
   toggleSelectAllBusinessStatus() {
     this.selectAllBusinessStatusCheckbox = !this.selectAllBusinessStatusCheckbox;
-    this.form.get('businessStatusSelectRef').patchValue(this.selectAllBusinessStatusCheckbox ? this.businessStatusList.map((s) => s.value) : []);
+    if (this.selectAllBusinessStatusCheckbox) {
+      this.form.get('businessStatusSelectRef').patchValue(this.businessStatusList.map((s) => s.value));
+      this.selectedBusinessStatus = this.businessStatusList.map((s) => s.value);
+    } else {
+      this.form.get('businessStatusSelectRef').patchValue([]);
+      this.selectedBusinessStatus = [];
+    }
   }
 
-  /** Keeps the "Select All" checkbox in sync (also for keyboard selection). */
+  isAllBusinessStatusSelected(event: any) {
+    const selected = this.form.get('businessStatusSelectRef').value || [];
+    const all = this.businessStatusList.map((s) => s.value);
+    this.selectAllBusinessStatusCheckbox = selected.length === all.length;
+  }
+
   getSelectedBusinessStatus() {
-    this.selectAllBusinessStatusCheckbox = this.selectedBusinessStatus.length === this.businessStatusList.length;
+    this.selectedBusinessStatus = this.form.controls['businessStatusSelectRef']?.value || [];
+    // Keeps the (unbound) "Select All" checkbox in sync for keyboard selection too (option (click) is mouse-only).
+    this.isAllBusinessStatusSelected(null);
   }
 
-  // ------------------------------------------------------------------------------------------- companies
-  get selectedCompanyIds(): string[] {
-    return this.value('companyIds') || [];
+  getSelectedCustomerStatus() {
+    this.selectedCustomerStatus = this.form.controls['customerStatusSelectRef']?.value || [];
   }
 
-  get companiesSelectAllState(): SelectAllState {
-    return this.selectAllState(this.selectedCompanyIds.length, this.companies.length);
+  getSelectedCustomerOrderStatus() {
+    this.selectedCustomerOrderStatus = this.form.controls['customerOrderStatusRef']?.value || [];
   }
 
-  toggleAllCompanies() {
-    const all = this.companiesSelectAllState === 'checked';
-    this.form.get('companyIds').setValue(all ? [] : this.companies.map((c) => c.id));
-  }
-
-  /**
-   * Loads the company shares for the sales person's shops that match the filters above the Company field, whenever
-   * those filters change while it is shown. The field shows a loader until they arrive.
-   */
-  private refreshCompanies() {
-    if (!this.showCompanies) {
-      this.companiesKey = '';
-      return;
-    }
-    const body = this.customerFilterBody();
-    const key = JSON.stringify(body);
-    if (key !== this.companiesKey) {
-      this.companiesKey = key;
-      this.companiesLoading = true;
-      this.companyShare$.next(body);
-    }
-  }
-
-  /** count_by_salesperson-style filter body for the selected sales person (companies not included). */
-  private customerFilterBody() {
-    return {
-      isActive: this.selectedCustomerStatus,
-      businessStatus: this.selectedBusinessStatus,
-      // business type names ('Kirana', ...) -> numeric BusinessType enum values (1, ...)
-      businessType: this.selectedBusinessTypes.map((type) => (BusinessType as any)[type]),
-      salespersonIds: [this.selectedSalesPersonId],
-      customerOrderStatus: this.selectedCustomerOrderStatus,
-    };
-  }
-
-  /** New shop shares for the current filters; companies that are no longer offered are deselected. */
-  setCompanies(shares: CompanyShopShare[] | undefined) {
-    this.companiesLoading = false;
-    this.companiesError = !Array.isArray(shares);
-    this.companies = (shares || []).map((share, index) => ({
-      id: share.company_id,
-      name: share.company_name,
-      color: COMPANY_COLORS[index % COMPANY_COLORS.length],
-      shopPercentage: Math.round(Number(share.shop_percentage) || 0),
+  mapToSalesPersons(salesPersons: SalesPerson[]) {
+    return salesPersons.map((sp) => ({
+      id: sp.id,
+      // The Tasks Count input is a text field: send a number.
+      taskCountPerDay: Number(sp.tasksCount),
+      areaId: sp.areaId,
+      areaName: sp.areaName,
     }));
-    const offered = this.selectedCompanyIds.filter((id) => this.companies.some((c) => c.id === id));
-    if (offered.length !== this.selectedCompanyIds.length) {
-      this.form.get('companyIds').setValue(offered);
-    }
   }
 
-  // ------------------------------------------------------------------------------------------- triggers
-  get companyTriggerText(): string {
-    const names = this.companies.filter((c) => this.selectedCompanyIds.includes(c.id)).map((c) => c.name);
-    return this.triggerText(names, this.companies.length, 'All companies');
-  }
-
-  private triggerText(names: string[], total: number, allLabel: string): string {
-    if (!names.length) {
-      return '';
-    }
-    if (names.length === total && total > 1) {
-      return `${allLabel} (${total})`;
-    }
-    const others = names.length - 1;
-    return others ? `${names[0]} (+${others} ${others === 1 ? 'other' : 'others'})` : names[0];
-  }
-
-  private selectAllState(selected: number, total: number): SelectAllState {
-    return selected === 0 || total === 0 ? 'unchecked' : selected >= total ? 'checked' : 'indeterminate';
-  }
-
-  // ------------------------------------------------------------------------------------------- generate
-  /** "Generate" is enabled once every filter has a value (and the companies have loaded). */
-  get canGenerate(): boolean {
-    return (
-      !!this.form &&
-      !!this.selectedSalesPerson &&
-      this.taskDates.length > 0 &&
-      this.selectedCustomerStatus.length > 0 &&
-      this.selectedBusinessStatus.length > 0 &&
-      this.selectedBusinessTypes.length > 0 &&
-      this.selectedCustomerOrderStatus.length > 0 &&
-      !this.companiesLoading &&
-      this.selectedCompanyIds.length > 0
-    );
-  }
-
-  /** "Generate" button: loads the matching shops, then opens the Generate Tasks dialog (sets -> pick days -> schedule). */
+  /** "Preview" button. */
   async generateTasks() {
-    if (!this.canGenerate) {
-      showWarningAlert('Please select all the filters');
-      return;
+    try {
+      if (this.validateSelections()) {
+        const request = {
+          salesPersons: this.mapToSalesPersons(this.selectedSalespersons),
+          taskDates: formatDatesToYMD(this.selectedDates),
+          filters: {
+            businessTypes: this.selectedBusinessTypes,
+            customerStatus: this.selectedCustomerStatus,
+            businessStatus: this.selectedBusinessStatus,
+            customerOrderStatus: this.selectedCustomerOrderStatus,
+          },
+        };
+        await this.checkTaskCount(request);
+      }
+    } catch (error) {
+      this.loader.close();
+      console.log('ERROR:::', error);
     }
-    const body = { ...this.customerFilterBody(), companyIds: this.selectedCompanyIds };
-    const filters: TaskFilters = {
-      businessTypes: body.businessType,
-      customerStatus: body.isActive,
-      businessStatus: body.businessStatus,
-      customerOrderStatus: body.customerOrderStatus,
-      companyIds: body.companyIds,
-    };
+  }
+
+  /** Customer Status is NOT validated. Tasks count must be > 0 for every selected sales person. */
+  validateSelections(): boolean {
+    const hasItems = (items: any[], message: string) => !!items.length || (showWarningAlert(message), false);
+    if (
+      !(
+        hasItems(this.selectedBusinessStatus, 'Please select the Business Status') &&
+        hasItems(this.selectedSalespersons, 'Please select the SalesPerson') &&
+        hasItems(this.selectedBusinessTypes, 'Please select the Business Type') &&
+        hasItems(this.selectedCustomerOrderStatus, 'Please select the Customer Order Status') &&
+        hasItems(this.selectedDates, 'Please select the Date')
+      )
+    ) {
+      return false;
+    }
+    if (this.selectedSalespersons && !this.selectedSalespersons.every((sp) => Number(sp.tasksCount) > 0)) {
+      showWarningAlert('Please Enter Tasks');
+      return false;
+    }
+    return true;
+  }
+
+  async checkTaskCount(request: any) {
     this.loader.open();
     try {
-      const shops: ScheduleShop[] = await this.salesPersonService.getShopsForSchedule(body);
-      if (!Array.isArray(shops)) {
-        throw new Error('shops_for_schedule returned no data');
-      }
-      const data: GenerateTasksDialogData = {
-        salesPerson: this.selectedSalesPerson,
-        dates: this.taskDates,
-        filters,
-        companies: this.companies.filter((company) => this.selectedCompanyIds.includes(company.id)),
-        shops,
+      // business type names ('Kirana', ...) -> numeric BusinessType enum values (1, ...)
+      const businessTypeIds = this.selectedBusinessTypes.map((type) => (BusinessType as any)[type]);
+      const customerCounts = await this.getCustomerCount(
+        this.selectedSalespersons,
+        this.selectedDates,
+        this.selectedCustomerStatus,
+        this.selectedBusinessStatus,
+        businessTypeIds,
+        this.selectedCustomerOrderStatus
+      );
+      const generateTasks: GenerateTasksData = {
+        salesPersons: this.mergeResponses(customerCounts, request),
+        taskDates: formatDatesToYMD(this.selectedDates),
+        filters: {
+          businessTypes: businessTypeIds,
+          customerStatus: this.selectedCustomerStatus,
+          businessStatus: this.selectedBusinessStatus,
+          customerOrderStatus: this.selectedCustomerOrderStatus,
+        },
       };
       this.loader.close();
-      this.dialog.open(GenerateTasksDialogComponent, { width: '90%', height: '90%', maxWidth: '96vw', disableClose: true, data });
+      this.viewTaskDetails(generateTasks);
     } catch (error) {
-      console.log('generateTasks Error ::: ', error);
+      console.log('error', error);
       Swal.fire({ title: '', text: 'Something went wrong!', icon: 'error' });
     } finally {
       this.loader.close();
     }
+  }
+
+  async getCustomerCount(
+    salesPersons: SalesPerson[],
+    dates: Date[],
+    customerStatus: any[],
+    businessStatus: any[],
+    businessTypes: any[],
+    customerOrderStatus: any[]
+  ) {
+    const body = {
+      isActive: customerStatus,
+      businessStatus,
+      businessType: businessTypes,
+      salespersonIds: salesPersons.map((sp) => sp.id),
+      customerOrderStatus,
+    };
+    const counts: SalesPersonCustomerCount[] = await this.salesPersonService.getCustomerCount(body);
+    if (!Array.isArray(counts)) {
+      // SalesPersonService.getCustomerCount swallows HTTP errors and resolves undefined.
+      throw new Error('count_by_salesperson returned no data');
+    }
+    return counts.map((count) => ({
+      salespersonId: count.salesperson_id,
+      name: salesPersons.find((sp) => sp.id === count.salesperson_id)?.name || 'Unknown',
+      dateLength: dates.length,
+      customerCount: count.customer_count,
+      tasksCount: Number(salesPersons.find((sp) => sp.id === count.salesperson_id)?.tasksCount),
+      givenTaskCount: Math.ceil(dates.length * (Number(salesPersons.find((sp) => sp.id === count.salesperson_id)?.tasksCount) || 0)),
+      expectedTaskCount: Math.ceil(count.customer_count / dates.length),
+    }));
+  }
+
+  mergeResponses(customerCounts: any[], request: any) {
+    return request.salesPersons.map((sp: any) => {
+      const count = customerCounts.find((c) => c.salespersonId === sp.id);
+      return {
+        id: sp.id,
+        name: this.selectedSalespersons.find((s) => s.id === sp.id)?.name || 'Unknown',
+        dateLength: this.selectedDates.length,
+        customerCount: count ? count.customerCount : 0,
+        tasksCount: count ? count.tasksCount : sp.taskCountPerDay,
+        givenTaskCount: count ? count.givenTaskCount : 0,
+        expectedTaskCount: count ? count.expectedTaskCount : 0,
+        taskCountPerDay: sp.taskCountPerDay,
+        areaId: sp.areaId,
+        areaName: sp.areaName,
+      };
+    });
+  }
+
+  async viewTaskDetails(generateTasks: GenerateTasksData) {
+    this.dialog
+      .open(PreviewDialogComponent, {
+        width: '90%',
+        height: '90%',
+        disableClose: true,
+        data: { generateTasks },
+      })
+      .afterClosed()
+      .subscribe(async (result: any) => {
+        // NOTE: the preview dialog closes with {} so this never clears the filters.
+        if (result && result.taskStatus == MessageQueueStatus.Started) {
+          this.clearTaskFilters();
+        }
+      });
+  }
+
+  clearTaskFilters() {
+    this.form.reset();
+    this.selectedDates = [];
+    this.selectedCustomerStatus = [];
+    this.selectedBusinessTypes = [];
+    this.selectedSalespersons = [];
   }
 
   /** Unused helper (kept from bundle). */

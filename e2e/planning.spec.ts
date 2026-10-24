@@ -426,313 +426,162 @@ test.describe('Planning: Tasks', () => {
     return page.locator('sales-person-tasks');
   }
 
-  /** Picks the `index`-th sales person (single select: the panel closes on the click); returns what the card shows. */
-  async function choosePerson(page: Page, index = 0): Promise<{ name: string; area: string; customers: string }> {
-    const panel = await openSelect(page, fieldByLabel(tasksTab(page), 'Sales Person'));
-    await expect(panel.locator('.select-all-row')).toHaveCount(0);
-    const option = panel.locator('mat-option.sales-person-option').nth(index);
-    const name = (await option.locator('.sp-name').innerText()).trim();
-    const area = (await option.locator('.sp-area span').innerText()).trim();
-    const customers = (await option.locator('.sp-stat', { hasText: 'Customers' }).locator('.sp-stat-value').innerText()).trim();
-    await option.click();
-    await expect(panel).toHaveCount(0);
-    return { name, area, customers };
+  function salesPersonRows(page: Page): Locator {
+    return rows(tasksTab(page));
   }
 
-  async function pickSalesPerson(page: Page): Promise<string> {
-    return (await choosePerson(page)).name;
+  function rowCheckbox(row: Locator): Locator {
+    return row.locator('.cdk-column-checkbox input[type="checkbox"]');
   }
 
-  async function selectAllIn(page: Page, label: string, selectAll: string) {
+  function headerCheckbox(page: Page): Locator {
+    return tasksTab(page).locator('.mat-mdc-header-row .cdk-column-checkbox input[type="checkbox"]');
+  }
+
+  async function selectAllIn(page: Page, label: string) {
     const panel = await openSelect(page, fieldByLabel(tasksTab(page), label));
-    await panel.locator(selectAll).first().click();
+    await panel.locator('mat-checkbox', { hasText: 'Select All' }).click();
     await page.keyboard.press('Escape');
     await expect(panel).toHaveCount(0);
   }
 
-  /** Fills every filter for one sales person and the given day range; returns the sales person's name. */
-  async function fillFilters(page: Page, from: number, to: number): Promise<string> {
-    const name = await pickSalesPerson(page);
-    await pickDate(page, fieldByLabel(tasksTab(page), 'Select From Date'), from);
-    await pickDate(page, fieldByLabel(tasksTab(page), 'Select To Date'), to);
+  async function preview(page: Page) {
+    await button(tasksTab(page), 'Preview').click();
+  }
+
+  /** Every filter set for the first sales person of the list and the given days; returns that sales person's name. */
+  async function fillFilters(page: Page, days: number[]): Promise<string> {
+    for (const offset of days) await pickDate(page, 'Select Date', offset, tasksTab(page));
     await selectOptions(page, fieldByLabel(tasksTab(page), 'Customer Status'), ['Active', 'InActive'], { multiple: true });
-    await selectAllIn(page, 'Business Status', 'mat-checkbox');
-    await selectAllIn(page, 'Business Type', 'mat-checkbox');
+    await selectAllIn(page, 'Business Status');
+    await selectAllIn(page, 'Business Type');
     await selectOptions(page, fieldByLabel(tasksTab(page), 'Customer Order Status'), ORDER_STATUSES, { multiple: true });
-    await selectAllIn(page, 'Company', '.select-all-row');
-    return name;
+    const row = salesPersonRows(page).first();
+    await rowCheckbox(row).check();
+    return (await row.locator('.cdk-column-Name').innerText()).trim();
   }
 
-  /** "23 Fri": the day labels of the Generate Tasks dialog (format 'd EEE'). */
-  function dayName(offset: number): string {
-    const date = day(offset).date;
-    return `${date.getUTCDate()} ${date.toLocaleDateString('en-US', { timeZone: 'UTC', weekday: 'short' })}`;
-  }
-
-  // The tests plan 23–29 October 2026 (+2 … +8), clear of the seeded tasks. Sunday the 25th is never a visit day.
-  const RANGE = [2, 3, 4, 5, 6, 7, 8];
-  const VISIT_DAYS = RANGE.filter((offset) => !dayName(offset).endsWith('Sun'));
-
-  async function openGenerate(page: Page): Promise<Locator> {
-    await expect(button(tasksTab(page), 'Generate')).toBeEnabled();
-    await button(tasksTab(page), 'Generate').click();
+  async function openPreview(page: Page): Promise<Locator> {
+    await preview(page);
     await waitForLoader(page);
-    const dialog = page.locator('generate-tasks-dialog');
-    await expect(heading(dialog, 'Generate Tasks')).toBeVisible();
+    const dialog = dialogTitled(page, 'View Tasks Preview');
+    await expect(dialog).toBeVisible();
     return dialog;
-  }
-
-  function planCard(dialog: Locator, name: string): Locator {
-    return dialog.locator('.plan-card', { has: dialog.page().locator('.plan-name', { hasText: exact(name) }) });
-  }
-
-  /** The sales person's shop total, from "6 sets × 35 = 210 places for 172 shops" / "… = 60 of 172 shops". */
-  async function shopCount(card: Locator): Promise<number> {
-    const text = await card.locator('.metric-main').innerText();
-    const match = text.match(/(?:of|for) (\d+) shops/);
-    expect(match, `shop total in "${text}"`).toBeTruthy();
-    return Number(match![1]);
   }
 
   test.beforeEach(async ({ page }) => {
     await tab(page, 'Tasks').click();
     await expect(tasksTab(page)).toBeVisible();
     await waitForLoader(page);
+    await expect(salesPersonRows(page).first()).toBeVisible();
   });
 
-  test('the filters appear one after another; Generate is enabled once all of them have a value', async ({ page }) => {
-    const tasks = tasksTab(page);
-    const field = (label: string) => fieldByLabel(tasks, label);
-    const generate = button(tasks, 'Generate');
-    /** Generate is always shown, and only enabled once every filter (including a company) has a value. */
-    const expectGenerate = async (enabled: boolean) => {
-      await expect(generate).toBeVisible();
-      await (enabled ? expect(generate).toBeEnabled() : expect(generate).toBeDisabled());
+  test('lists the sales persons with an area, at 35 tasks a day', async ({ page }) => {
+    await expect(heading(tasksTab(page), 'Filter by')).toBeVisible();
+    await expect(heading(tasksTab(page), 'Sales Person List')).toBeVisible();
+    const areas = await columnTexts(tasksTab(page), 'Area-Name');
+    expect(areas.length).toBeGreaterThan(20);
+    expect(areas.every((a) => a.length > 0)).toBe(true);
+    const counts = await tasksTab(page).locator('.mat-mdc-row .cdk-column-Tasks-Count input').evaluateAll((els) =>
+      els.map((el) => (el as HTMLInputElement).value),
+    );
+    expect(new Set(counts)).toEqual(new Set(['35']));
+  });
+
+  test('Preview names the first missing filter', async ({ page }) => {
+    const expectWarning = async (text: string) => {
+      await preview(page);
+      await closeSwal(page, text);
     };
-    const later = ['Select From Date', 'Select To Date', 'Customer Status', 'Business Status', 'Business Type', 'Customer Order Status', 'Company'];
-    for (const label of later) await expect(field(label)).toHaveCount(0);
-    await expectGenerate(false);
-    await expect(tasks.locator('.generate-row')).toHaveText(/^\s*Generate\s*$/);
-
-    // Sales person (single select: picking another replaces the first).
-    const salesPerson = field('Sales Person');
-    await expect(salesPerson.locator('mat-hint')).toHaveText('Select a sales person to choose the other filters');
-    const first = await choosePerson(page, 0);
-    await expect(salesPerson.locator('.mat-mdc-select-value')).toHaveText(first.name);
-    await expect(salesPerson.locator('mat-hint')).toHaveText(`${first.area} · ${first.customers} customers`);
-    const second = await choosePerson(page, 1);
-    await expect(salesPerson.locator('.mat-mdc-select-value')).toHaveText(second.name);
-    await expect(salesPerson.locator('mat-hint')).toHaveText(`${second.area} · ${second.customers} customers`);
-    await expectGenerate(false);
-
-    // Dates: a day before today can't be picked.
-    await expect(field('Select From Date')).toBeVisible();
-    await expect(field('Select To Date')).toBeVisible();
-    await expect(field('Customer Status')).toHaveCount(0);
-    await field('Select From Date').locator('mat-datepicker-toggle button').click();
-    await expect(page.locator(`.mat-calendar-body-cell[aria-label="${day(-1).label}"]`)).toHaveAttribute('aria-disabled', 'true');
-    await page.keyboard.press('Escape');
-    await pickDate(page, field('Select From Date'), RANGE[0]);
-    await expect(field('Customer Status')).toHaveCount(0);
-    await pickDate(page, field('Select To Date'), RANGE[RANGE.length - 1]);
-    await expectGenerate(false);
-
-    // Each customer filter unlocks the next one.
-    await selectOptions(page, field('Customer Status'), ['Active', 'InActive'], { multiple: true });
-    await expect(field('Business Type')).toHaveCount(0);
-    await expectGenerate(false);
-    await selectAllIn(page, 'Business Status', 'mat-checkbox');
-    await expect(field('Customer Order Status')).toHaveCount(0);
-    await expectGenerate(false);
-    await selectAllIn(page, 'Business Type', 'mat-checkbox');
-    await expect(tasks.locator('.company-loader')).toHaveCount(0);
-    await expectGenerate(false);
-    await selectOptions(page, field('Customer Order Status'), ORDER_STATUSES, { multiple: true });
-
-    // The company shares load for these filters, then the Company field appears.
-    await expect(tasks.locator('.company-loader')).toContainText('Loading companies');
-    await expectGenerate(false);
-    await expect(field('Company')).toBeVisible();
-    await expect(tasks.locator('.company-loader')).toHaveCount(0);
-    await expectGenerate(false);
-    const panel = await openSelect(page, field('Company'));
-    await expect(panel.locator('mat-option.company-option').first()).toContainText(/\d+% of shops/);
-    await expect(panel.locator('.company-dot')).toHaveCount(0);
-    await page.keyboard.press('Escape');
-    await selectAllIn(page, 'Company', '.select-all-row');
-    await expectGenerate(true);
-
-    // Clearing a filter hides the later ones and disables Generate; their values come back with it (the companies
-    // reload first).
-    await selectAllIn(page, 'Business Type', 'mat-checkbox');
-    await expect(field('Customer Order Status')).toHaveCount(0);
-    await expect(field('Company')).toHaveCount(0);
-    await expectGenerate(false);
-    await selectAllIn(page, 'Business Type', 'mat-checkbox');
-    await expect(field('Customer Order Status')).toBeVisible();
-    await expect(field('Company')).toBeVisible();
-    await expectGenerate(true);
+    await expectWarning('Please select the Business Status');
+    await selectAllIn(page, 'Business Status');
+    await expectWarning('Please select the SalesPerson');
+    await rowCheckbox(salesPersonRows(page).first()).check();
+    await expectWarning('Please select the Business Type');
+    await selectAllIn(page, 'Business Type');
+    await expectWarning('Please select the Customer Order Status');
+    await selectOptions(page, fieldByLabel(tasksTab(page), 'Customer Order Status'), ORDER_STATUSES, { multiple: true });
+    await expectWarning('Please select the Date');
+    await pickDate(page, 'Select Date', 2, tasksTab(page));
+    await salesPersonRows(page).first().locator('.cdk-column-Tasks-Count input').fill('0');
+    await expectWarning('Please Enter Tasks');
   });
 
-  test('Generate step 1 (Sets): shop maths, shops left out and a suggested set size', async ({ page }) => {
-    const name = await fillFilters(page, RANGE[0], RANGE[RANGE.length - 1]);
-    await expect(fieldByLabel(tasksTab(page), 'Select To Date')).toContainText(`${RANGE.length} days`);
-    const dialog = await openGenerate(page);
-    await expect(dialog.locator('.wizard-step')).toHaveText([/Sets/, /Pick days/, /Schedule/]);
-    await expect(dialog.locator('.wizard-step.active')).toContainText('Sets');
-    await expect(dialog.locator('mat-progress-bar')).toHaveAttribute('aria-valuenow', /^33(\.\d+)?$/);
+  test('the header checkbox follows the rows, and a day is listed once', async ({ page }) => {
+    const first = rowCheckbox(salesPersonRows(page).first());
+    // Ticking one row of many leaves the header unticked (production ticked it).
+    await first.check();
+    await expect(headerCheckbox(page)).not.toBeChecked();
+    await first.uncheck();
+    await headerCheckbox(page).check();
+    const all = tasksTab(page).locator('.mat-mdc-row .cdk-column-checkbox input[type="checkbox"]');
+    expect(await all.evaluateAll((els) => els.every((el) => (el as HTMLInputElement).checked))).toBe(true);
+    await headerCheckbox(page).uncheck();
+    expect(await all.evaluateAll((els) => els.some((el) => (el as HTMLInputElement).checked))).toBe(false);
 
-    const card = planCard(dialog, name);
-    const shops = await shopCount(card);
-    expect(shops).toBeGreaterThan(VISIT_DAYS.length * 10);
-    const sets = card.locator('input[id^="sets-"]');
-    const perSet = card.locator('input[id^="per-set-"]');
-    // Defaults: one set per visit day, 35 retailers per set (production's tasks per day).
-    await expect(sets).toHaveValue(String(VISIT_DAYS.length));
-    await expect(perSet).toHaveValue('35');
+    // Picking the same day twice gives one chip (production added it twice).
+    const chips = tasksTab(page).locator('.datespan');
+    await pickDate(page, 'Select Date', 2, tasksTab(page));
+    await pickDate(page, 'Select Date', 2, tasksTab(page));
+    await expect(chips).toHaveText([day(2).ymd + 'close']);
+    await pickDate(page, 'Select Date', 3, tasksTab(page));
+    await expect(chips).toHaveCount(2);
+    await chips.first().locator('mat-icon', { hasText: 'close' }).click();
+    await expect(chips).toHaveText([day(3).ymd + 'close']);
+  });
 
-    await perSet.fill('10');
-    const metrics = card.locator('.plan-metrics');
-    await expect(metrics).toContainText(`${VISIT_DAYS.length} sets × 10 = ${VISIT_DAYS.length * 10} of ${shops} shops`);
-    await expect(metrics.locator('.metric-warn')).toHaveText(`${shops - VISIT_DAYS.length * 10} left out this week`);
-    const suggested = Math.ceil(shops / VISIT_DAYS.length);
-    await expect(metrics.locator('.metric-link')).toHaveText(`Use ${suggested} per set`);
-    await metrics.locator('.metric-link').click();
-    await expect(perSet).toHaveValue(String(suggested));
-    await expect(metrics.locator('.metric-ok')).toHaveText('All shops covered');
+  test('blocks generation when one day cannot cover the customers', async ({ page }) => {
+    const name = await fillFilters(page, [2]);
+    const dialog = await openPreview(page);
+    const row = rows(dialog).filter({ hasText: name });
+    await expect(row).toHaveCount(1);
+    const customers = Number((await row.locator('.cdk-column-customerCount').innerText()).trim());
+    expect(customers).toBeGreaterThan(35);
+    await expect(row.locator('.cdk-column-selectedDaysCount')).toHaveText('1');
+    await expect(row.locator('.cdk-column-taskCount')).toHaveText('35');
+    await expect(row.locator('.cdk-column-expectedTaskCount')).toHaveText(String(customers));
+    await expect(row.locator('.cdk-column-message')).toHaveText('Insufficient task assignments for selected dates.');
 
-    // More sets than visit days is not allowed.
-    await sets.fill(String(VISIT_DAYS.length + 1));
-    await expect(card.getByText(`Enter 1 to ${VISIT_DAYS.length} sets and at least 1 retailer per set.`)).toBeVisible();
-    await expect(button(dialog, 'Next')).toBeDisabled();
-    await expect(dialog.locator('.wizard-footer-hint')).toHaveText('Check the number of sets and retailers per set');
-    await sets.fill('2');
-    await expect(button(dialog, 'Next')).toBeEnabled();
-
-    await dialog.locator('.wizard-header mat-icon', { hasText: 'close' }).click();
+    await button(dialog, 'Generate Tasks').click();
+    await closeSwal(page, 'There is a shortage of tasks that need assignment.');
+    await expect(dialog).toBeVisible();
+    await dialog.locator('mat-icon', { hasText: 'close' }).click();
     await expect(dialog).toHaveCount(0);
   });
 
-  test('Generate: pick a day per set, assign the schedule, and see it in the Task Report', async ({ page }) => {
-    const name = await fillFilters(page, RANGE[0], RANGE[RANGE.length - 1]);
-    const dialog = await openGenerate(page);
+  test('generates tasks that then appear in the Task Report', async ({ page }) => {
+    // Seven days of 35 tasks cover any area of the sample data.
+    const days = [2, 3, 4, 5, 6, 7, 8];
+    const name = await fillFilters(page, days);
+    await expect(tasksTab(page).locator('.datespan')).toHaveCount(days.length);
+    const dialog = await openPreview(page);
+    const row = rows(dialog).filter({ hasText: name });
+    const customers = Number((await row.locator('.cdk-column-customerCount').innerText()).trim());
+    expect(customers).toBeGreaterThan(0);
+    await expect(row.locator('.cdk-column-selectedDaysCount')).toHaveText(String(days.length));
+    await expect(row.locator('.cdk-column-expectedTaskCount')).toHaveText(String(Math.ceil(customers / days.length)));
+    await expect(row.locator('.cdk-column-message')).toHaveText(/There may be days when there will be no tasks assigned|Success/);
 
-    // 1. Sets: one sales person per generation; three sets that hold every shop.
-    await expect(dialog.locator('.plan-card')).toHaveCount(1);
-    const card = planCard(dialog, name);
-    const shops = await shopCount(card);
-    await card.locator('input[id^="sets-"]').fill('3');
-    await card.locator('input[id^="per-set-"]').fill(String(Math.ceil(shops / 3)));
-    await expect(card.locator('.metric-ok')).toHaveText('All shops covered');
-    await button(dialog, 'Next').click();
-
-    // 2. Pick days: one column per visit day (no Sunday), one row per set.
-    await expect(dialog.locator('.wizard-step.active')).toContainText('Pick days');
-    await expect(dialog.locator('.day-header .day-name')).toHaveText(VISIT_DAYS.map(dayName));
-    await expect(dialog.locator('.day-header .day-delivery').first()).toHaveText(`Delivery ${dayName(VISIT_DAYS[0] + 1)}`);
-    await expect(dialog.locator('.set-header .set-name')).toHaveText(['Set 1', 'Set 2', 'Set 3']);
-    await expect(dialog.locator('.plan-pill')).toHaveCount(0);
-    await expect(button(dialog, 'Auto-pick for all sales persons')).toHaveCount(0);
-    const setSizes = (await dialog.locator('.set-shops-link').allInnerTexts()).map((t) => parseInt(t, 10));
-    expect(setSizes.reduce((a, b) => a + b, 0)).toBe(shops);
-    const cells = dialog.locator('.day-cell');
-    await expect(cells).toHaveCount(3 * VISIT_DAYS.length);
-    await expect(button(dialog, 'Next')).toBeDisabled();
-    await expect(dialog.locator('.wizard-footer-hint')).toHaveText('Pick a day for every set (0 of 3 picked)');
-
-    // "N shops" lists the set's retailers with their companies.
-    await dialog.locator('.set-shops-link').first().click();
-    const shopsPopup = page.locator('set-details-dialog');
-    await expect(shopsPopup.locator('.details-title')).toHaveText('Set 1');
-    await expect(shopsPopup.locator('.details-subtitle')).toHaveText(`${name} · ${setSizes[0]} shops`);
-    await expect(shopsPopup.locator('.details-item')).toHaveCount(setSizes[0]);
-    await expect(shopsPopup.locator('.details-value').first()).toHaveText(/^\d+ compan(y|ies)$/);
-    await button(shopsPopup, 'Close').click();
-    await expect(shopsPopup).toHaveCount(0);
-
-    // A click picks a day; a day holds one set, so picking it for another set moves it.
-    await cells.nth(0).click();
-    await expect(cells.nth(0)).toHaveClass(/\bpicked\b/);
-    await cells.nth(VISIT_DAYS.length).click();
-    await expect(cells.nth(VISIT_DAYS.length)).toHaveClass(/\bpicked\b/);
-    await expect(cells.nth(0)).not.toHaveClass(/\bpicked\b/);
-    await expect(dialog.locator('.day-cell.picked')).toHaveCount(1);
-    await button(dialog, 'Clear').click();
-    await expect(dialog.locator('.day-cell.picked')).toHaveCount(0);
-
-    // "+N more" lists every brand delivering the next day.
-    await dialog.locator('.more-link').first().click();
-    const details = page.locator('set-details-dialog');
-    await expect(details.locator('.details-title')).toHaveText(/^Set \d · \d+ (Mon|Tue|Wed|Thu|Fri|Sat)$/);
-    await expect(details.locator('.details-item').first()).toBeVisible();
-    await button(details, 'Close').click();
-    await expect(details).toHaveCount(0);
-
-    await button(dialog, 'Auto-pick days').click();
-    await expect(dialog.locator('.day-cell.picked')).toHaveCount(3);
-    const pickedColumns = await cells.evaluateAll(
-      (els, columns) => els.map((el, i) => (el.classList.contains('picked') ? i % columns : -1)).filter((c) => c >= 0),
-      VISIT_DAYS.length,
-    );
-    expect(new Set(pickedColumns).size).toBe(3);
-    await expect(button(dialog, 'Next')).toBeEnabled();
-    await button(dialog, 'Next').click();
-
-    // 3. Schedule: the sales person's line and one card per visit day, three of them with a set.
-    await expect(dialog.locator('.wizard-step.active')).toContainText('Schedule');
-    await expect(dialog.locator('.schedule-plan')).toHaveCount(1);
-    await expect(dialog.locator('.schedule-plan-name')).toContainText(name);
-    await expect(dialog.locator('.schedule-card')).toHaveCount(VISIT_DAYS.length);
-    await expect(dialog.locator('.schedule-card.empty .schedule-set')).toHaveText(Array(VISIT_DAYS.length - 3).fill('No visit'));
-    const visits = await dialog.locator('.schedule-card:not(.empty)').evaluateAll((els) =>
-      els.map((el) => ({
-        day: el.querySelector('.schedule-day')!.textContent!.trim(),
-        set: Number(el.querySelector('.schedule-set')!.textContent!.trim().replace('Set ', '')),
-        size: Number(el.querySelector('.schedule-shops')!.textContent!.match(/of (\d+) shops/)![1]),
-      })),
-    );
-    expect(visits.map((v) => v.set).sort()).toEqual([1, 2, 3]);
-    visits.forEach((v) => expect(v.size).toBe(setSizes[v.set - 1]));
-    expect(VISIT_DAYS.map(dayName)).toEqual(expect.arrayContaining(visits.map((v) => v.day)));
-
-    // "Set N" opens that day's retailers.
-    await dialog.locator('a.schedule-set-link').first().click();
-    const setPopup = page.locator('set-details-dialog');
-    await expect(setPopup.locator('.details-title')).toHaveText(`Set ${visits[0].set} · ${visits[0].day}`);
-    await expect(setPopup.locator('.details-subtitle')).toHaveText(`${name} · ${visits[0].size} shops`);
-    await expect(setPopup.locator('.details-item')).toHaveCount(visits[0].size);
-    await button(setPopup, 'Close').click();
-    await expect(setPopup).toHaveCount(0);
-
-    await button(dialog, 'Assign schedule').click();
-    await expectSwal(page, 'Success!');
+    await button(dialog, 'Generate Tasks').click();
     await closeSwal(page, 'Tasks are being generated. Please wait for 5 minutes.');
     await expect(dialog).toHaveCount(0);
 
-    // Task Report: one row per visit date, each with its set's shops.
-    const offsetOf = new Map(VISIT_DAYS.map((offset) => [dayName(offset), offset]));
-    const expected = visits
-      .map((v) => ({ date: day(offsetOf.get(v.day)!).ymd, count: setSizes[v.set - 1] }))
-      .sort((a, b) => a.date.localeCompare(b.date));
-
     await open(page, '/task-report');
-    await pickDate(page, 'Start Date', RANGE[0]);
-    await pickDate(page, 'End Date', RANGE[RANGE.length - 1]);
+    await pickDate(page, 'Start Date', days[0]);
+    await pickDate(page, 'End Date', days[days.length - 1]);
     await selectOptions(page, fieldByLabel(page, 'Sales Person'), [name], { multiple: true });
     await button(page, 'Search').click();
     await waitForLoader(page);
-    const reported = await rows(page).evaluateAll((els) =>
-      els.map((el) => ({
-        date: el.querySelector('.cdk-column-date')!.textContent!.trim(),
-        count: Number(el.querySelector('.cdk-column-customerCount')!.textContent!.trim()),
-      })),
-    );
-    expect(reported.sort((a, b) => a.date.localeCompare(b.date))).toEqual(expected);
+    // Production generates for every picked day, Sundays included.
+    expect(await columnTexts(page, 'date')).toEqual(days.map((d) => day(d).ymd));
+    const counts = (await columnTexts(page, 'customerCount')).map(Number);
+    expect(counts.reduce((a, b) => a + b, 0)).toBe(customers);
+    expect(counts.every((c) => c <= 35)).toBe(true);
     expect(new Set(await columnTexts(page, 'salesPersonName'))).toEqual(new Set([name]));
 
     await button(rows(page).first(), 'View Customers').click();
     await waitForLoader(page);
-    await expect(page.locator('.mat-mdc-paginator-range-label')).toHaveText(new RegExp(` of \\d+\\s*$`));
+    await expect(page.locator('.mat-mdc-paginator-range-label')).toHaveText(new RegExp(` of ${counts[0]}\\s*$`));
     expect(new Set(await columnTexts(page, 'status'))).toEqual(new Set(['Not Yet Visited']));
   });
 });

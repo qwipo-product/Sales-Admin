@@ -24,129 +24,30 @@
   font-size: 20px;
 }
 
+.closeicon {
+  color: #212121;
+  position: relative;
+  font-size: 20px;
+  left: 4px;
+}
+
+.dateSelectDiv {
+  border: 1.5px solid #aa85db;
+  padding: 10px 10px 15px;
+  border-radius: 10px;
+  margin-bottom: 10px;
+}
+
+.datespan {
+  background-color: #eaeaef;
+  padding: 6px;
+  border-radius: 10px;
+  margin: 2px;
+  display: inline-flex;
+}
+
 .text-violet {
   color: #4a2981;
-}
-
-/* "Select all" row at the top of the Sales Person and Company panels (styled like the options below it). */
-.select-all-row {
-  font-weight: 600;
-}
-
-/* Sales Person options: one card per sales person. */
-.mat-mdc-option.sales-person-option {
-  padding-top: 4px;
-  padding-bottom: 4px;
-}
-
-.sp-card {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 8px 12px;
-  border: 1px solid #e3e3ec;
-  border-radius: 8px;
-  background-color: #fff;
-}
-
-.mat-mdc-option.mdc-list-item--selected .sp-card {
-  border-color: #0081ff;
-  background-color: rgba(0, 129, 255, 0.06);
-}
-
-.sp-info {
-  flex: 1 1 auto;
-  min-width: 0;
-}
-
-.sp-name {
-  overflow: hidden;
-  color: rgba(0, 0, 0, 0.87);
-  font-size: 14px;
-  font-weight: 600;
-  line-height: 20px;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-
-.sp-area {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  color: rgba(0, 0, 0, 0.6);
-  font-size: 12px;
-  line-height: 18px;
-
-  .mat-icon {
-    width: 14px;
-    height: 14px;
-    font-size: 14px;
-  }
-}
-
-.sp-stats {
-  flex: none;
-  display: flex;
-  gap: 8px;
-}
-
-.sp-stat {
-  min-width: 80px;
-  padding: 4px 8px;
-  border-radius: 6px;
-  background-color: #f5f5f8;
-  text-align: center;
-}
-
-.sp-stat-value {
-  display: block;
-  color: rgba(0, 0, 0, 0.87);
-  font-size: 14px;
-  font-weight: 600;
-  line-height: 20px;
-}
-
-.sp-stat-label {
-  display: block;
-  color: rgba(0, 0, 0, 0.6);
-  font-size: 11px;
-  line-height: 14px;
-}
-
-/* Company options: name, share of shops on the right. */
-.company-name {
-  flex: 1 1 auto;
-  color: rgba(0, 0, 0, 0.87);
-}
-
-.company-share {
-  flex: none;
-  margin-left: 16px;
-  color: rgba(0, 0, 0, 0.54);
-  font-size: 14px;
-  white-space: nowrap;
-}
-
-/* Stands in for the Company field while the shares load (same height as a form field). */
-.company-loader {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  height: 56px;
-  margin-bottom: 22px;
-  padding: 0 16px;
-  border-radius: 4px 4px 0 0;
-  background-color: rgba(0, 0, 0, 0.04);
-  color: rgba(0, 0, 0, 0.6);
-  font-size: 14px;
-}
-
-.generate-row {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 16px;
-  margin-top: 8px;
 }
 
 .ft-16 {

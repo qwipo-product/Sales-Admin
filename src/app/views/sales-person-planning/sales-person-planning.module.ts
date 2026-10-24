@@ -1,6 +1,5 @@
 import { NgModule } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { MatPseudoCheckboxModule } from '@angular/material/core';
 
 import { SharedModule } from '../../shared/shared.module';
 import { SalesPersonPlanningRoutingModule } from './sales-person-planning-routing.module';
@@ -14,8 +13,7 @@ import { AddJsonDialogComponent } from './dialogs/add-json-dialog/add-json-dialo
 import { AddAreaNameDialogComponent } from './dialogs/add-area-name-dialog/add-area-name-dialog.component';
 import { UpdateCoordinatesDialogComponent } from './dialogs/update-coordinates-dialog/update-coordinates-dialog.component';
 import { SelectAreaDialogComponent } from './dialogs/select-area-dialog/select-area-dialog.component';
-import { GenerateTasksDialogComponent } from './dialogs/generate-tasks-dialog/generate-tasks-dialog.component';
-import { SetDetailsDialogComponent } from './dialogs/set-details-dialog/set-details-dialog.component';
+import { PreviewDialogComponent } from './dialogs/preview-dialog/preview-dialog.component';
 import { ClusterTypePipe } from './pipes/cluster-type.pipe';
 
 /**
@@ -36,11 +34,9 @@ import { ClusterTypePipe } from './pipes/cluster-type.pipe';
     AddAreaNameDialogComponent,
     UpdateCoordinatesDialogComponent,
     SelectAreaDialogComponent,
-    GenerateTasksDialogComponent,
-    SetDetailsDialogComponent,
+    PreviewDialogComponent,
     ClusterTypePipe,
   ],
-  // MatPseudoCheckboxModule: the "Select all" rows of the Tasks tab drop-downs (not in the original app).
-  imports: [CommonModule, SalesPersonPlanningRoutingModule, SharedModule, MatPseudoCheckboxModule],
+  imports: [CommonModule, SalesPersonPlanningRoutingModule, SharedModule],
 })
 export class SalesPersonPlanningModule {}
