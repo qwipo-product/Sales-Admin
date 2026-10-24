@@ -324,6 +324,25 @@ test.describe('Reschedule Tasks: dialog', () => {
     expect(new Set(await columnTexts(page, 'status'))).toEqual(new Set(['Not Yet Visited']));
   });
 
+  test("each set is an existing day's tasks; assigning the current days changes nothing", async ({ page }) => {
+    const { name } = await choosePerson(page, 0);
+    const before = await taskReport(page, name, DAYS[0], DAYS[DAYS.length - 1]);
+    expect(before.map((r) => r.date)).toEqual([day(0).ymd, day(1).ymd]);
+
+    await open(page, '/reschedule-tasks');
+    await fillForm(page, name, DAYS[0], DAYS[DAYS.length - 1]);
+    const dialog = await openDialog(page);
+    expect((await setsOf(dialog)).map((s) => s.size)).toEqual(before.map((r) => r.count));
+    await button(dialog, 'Clear').click();
+    await button(dialog, 'Current days').click();
+    await button(dialog, 'Next').click();
+    await expect(dialog.locator('.schedule-repeat')).toHaveCount(0);
+    await button(dialog, 'Assign schedule').click();
+    await closeSwal(page, 'Tasks are being rescheduled. Please wait for 5 minutes.');
+
+    expect(await taskReport(page, name, DAYS[0], DAYS[DAYS.length - 1])).toEqual(before);
+  });
+
   test('tasks generated in Planning can be rescheduled; a Sunday set needs a day of its own', async ({ page }) => {
     // Generate a week (Fri 23 to Thu 29, Sunday included) for the first sales person of Planning > Tasks, spread over
     // all seven days.
