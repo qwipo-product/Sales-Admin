@@ -358,7 +358,7 @@ export class SalesPersonService {
 
   /**
    * POST {coreUrl}/customer/company_share_by_salesperson body = { salespersonIds, isActive, businessStatus, businessType,
-   * customerOrderStatus } -> data = CompanyShopShare[] for the shops matching those filters (Tasks tab "Company" filter).
+   * customerOrderStatus } -> data = CompanyShopShare[] for the shops matching those filters (Reschedule Tasks: the companies).
    * Not part of the original app: the core API needs this endpoint; the mock backend has it.
    */
   async getCompanyShopShare(body: any) {
@@ -369,7 +369,7 @@ export class SalesPersonService {
 
   /**
    * POST {coreUrl}/customer/shops_for_schedule body = count_by_salesperson filters -> data = ScheduleShop[]
-   * (shops behind the Tasks tab "Generate" dialog, with each company's delivery days). Not part of the original app:
+   * (shops behind the Reschedule Tasks dialog, with each company's delivery days). Not part of the original app:
    * the core API needs this endpoint; the mock backend has it.
    */
   async getShopsForSchedule(body: any) {

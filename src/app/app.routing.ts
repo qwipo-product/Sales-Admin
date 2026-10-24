@@ -63,6 +63,12 @@ export const rootRouterConfig: Routes = [
         data: { title: RoutePaths.SALESPERSON_PLANNING, breadcrumb: RoutePaths.SALESPERSON_PLANNING },
       },
       {
+        // Not in the original app.
+        path: RoutePaths.RESCHEDULE_TASKS,
+        loadChildren: () => import('./views/reschedule-tasks/reschedule-tasks.module').then((m) => m.RescheduleTasksModule),
+        data: { title: RoutePaths.RESCHEDULE_TASKS, breadcrumb: RoutePaths.RESCHEDULE_TASKS },
+      },
+      {
         path: RoutePaths.TASKS,
         loadChildren: () => import('./views/tasks/tasks.module').then((m) => m.TasksListModule),
         data: { title: RoutePaths.TASKS, breadcrumb: RoutePaths.TASKS },

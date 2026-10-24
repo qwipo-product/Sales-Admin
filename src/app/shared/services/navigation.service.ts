@@ -80,6 +80,13 @@ export class NavigationService {
           pageId: PageIds.crm_salesperson_planning,
         },
         {
+          // Not in the original app. Shown to users who can see Planning (same permission).
+          name: 'Reschedule Tasks',
+          state: RoutePaths.RESCHEDULE_TASKS,
+          code: 'sales_person_planning',
+          pageId: PageIds.crm_salesperson_planning,
+        },
+        {
           name: 'Tasks',
           state: RoutePaths.TASKS,
           code: 'crm_task_report',

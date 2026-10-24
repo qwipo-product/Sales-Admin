@@ -1,5 +1,5 @@
 <div class="wizard-header">
-  <h2 class="card-title text-violet m-0">Generate Tasks</h2>
+  <h2 class="card-title text-violet m-0">Reschedule Tasks</h2>
   <mat-icon class="closeicon" (click)="dialogRef.close()">close</mat-icon>
 </div>
 
@@ -25,162 +25,94 @@
 </div>
 
 <div class="wizard-body">
-  <!-- 1. Sets -->
+  <!-- 1. Pick a day for each set -->
   <ng-container *ngIf="step === 0">
-    <h3 class="step-title">1. Sets</h3>
-    <p class="step-error" *ngIf="!visitDays.length">The selected dates have no visit days. Close this and pick other dates.</p>
-
-    <div class="plan-card">
-      <div class="plan-header">
-        <div class="plan-heading">
-          <div class="plan-name">{{ plan.salesPerson.name }}</div>
-          <div class="plan-area">
-            <mat-icon>location_on</mat-icon>
-            <span>{{ plan.salesPerson.areaName }}</span>
-          </div>
-        </div>
+    <div class="step-heading">
+      <h3 class="step-title">1. Pick a day for each set</h3>
+      <div class="pick-actions">
+        <button mat-raised-button type="button" color="primary" [disabled]="tooManySets" (click)="autoPick()">Auto-pick days</button>
+        <button mat-stroked-button type="button" (click)="resetPicks()">Current days</button>
+        <button mat-stroked-button type="button" [disabled]="!pickedCount" (click)="clearPicks()">Clear</button>
       </div>
+    </div>
+    <p class="step-error" *ngIf="tooManySets">
+      {{ sets.length }} sets but only {{ visitDays.length }} visit days (Sundays are skipped). Close this and pick a wider date
+      range.
+    </p>
 
-      <ng-container *ngIf="plan.shops.length; else noShops">
-        <div class="plan-inputs">
-          <label class="field-label" [for]="'sets-' + plan.salesPerson.id">Number of sets</label>
-          <mat-form-field appearance="fill" class="number-field" subscriptSizing="dynamic">
-            <input
-              matInput
-              type="number"
-              min="1"
-              [max]="visitDays.length"
-              [id]="'sets-' + plan.salesPerson.id"
-              [(ngModel)]="plan.numberOfSets"
-            />
-          </mat-form-field>
-          <label class="field-label" [for]="'per-set-' + plan.salesPerson.id">Retailers per set</label>
-          <mat-form-field appearance="fill" class="number-field" subscriptSizing="dynamic">
-            <input matInput type="number" min="1" [id]="'per-set-' + plan.salesPerson.id" [(ngModel)]="plan.retailersPerSet" />
-          </mat-form-field>
+    <div class="pick-grid-scroll">
+      <div class="pick-grid" [style.grid-template-columns]="gridColumns">
+        <div class="grid-corner"></div>
+        <div class="day-header" *ngFor="let day of visitDays">
+          <div class="day-name">{{ day.date | date: 'd EEE' }}</div>
+          <div class="day-delivery">Delivery {{ day.deliveryDate | date: 'd EEE' }}</div>
         </div>
 
-        <div class="plan-metrics" *ngIf="isPlanValid(plan); else invalidPlan">
-          <span class="metric-main" *ngIf="slots(plan) <= plan.shops.length">
-            {{ plan.numberOfSets }} {{ plan.numberOfSets === 1 ? 'set' : 'sets' }} × {{ plan.retailersPerSet }} =
-            {{ slots(plan) }} of {{ plan.shops.length }} shops
-          </span>
-          <span class="metric-main" *ngIf="slots(plan) > plan.shops.length">
-            {{ plan.numberOfSets }} {{ plan.numberOfSets === 1 ? 'set' : 'sets' }} × {{ plan.retailersPerSet }} =
-            {{ slots(plan) }} places for {{ plan.shops.length }} shops
-          </span>
-          <span class="metric-warn" *ngIf="leftOut(plan) > 0">{{ leftOut(plan) }} left out this week</span>
-          <span class="metric-ok" *ngIf="leftOut(plan) === 0">All shops covered</span>
-          <a href="" class="metric-link" *ngIf="leftOut(plan) > 0" (click)="useSuggested($event, plan)">
-            Use {{ suggestedPerSet(plan) }} per set
-          </a>
-        </div>
-        <div class="metric-note" *ngIf="isPlanValid(plan) && leftOut(plan) > 0">
-          The {{ leftOut(plan) }} shops with the fewest of the selected companies are left out.
-        </div>
-        <ng-template #invalidPlan>
-          <div class="plan-metrics step-error">
-            Enter 1 to {{ visitDays.length }} sets and at least 1 retailer per set.
+        <ng-container *ngFor="let set of sets">
+          <div class="set-header">
+            <div class="set-name">Set {{ set.index + 1 }}</div>
+            <a href="" class="set-shops-link" (click)="openShops($event, set)">{{ set.shops.length }} shops</a>
+            <div class="set-current">Now {{ set.currentDate | date: 'd EEE' }}</div>
           </div>
-        </ng-template>
-      </ng-container>
-      <ng-template #noShops>
-        <div class="plan-metrics metric-muted">No shops match the filters for this sales person.</div>
-      </ng-template>
+          <div
+            *ngFor="let day of visitDays"
+            class="day-cell"
+            role="button"
+            tabindex="0"
+            [class.best]="isBest(set, day)"
+            [class.picked]="isPicked(set, day)"
+            [class.taken]="!!takenBy(set, day)"
+            [attr.aria-pressed]="isPicked(set, day)"
+            [attr.title]="takenBy(set, day) ? 'Picked for Set ' + (takenBy(set, day)!.index + 1) : null"
+            (click)="pick(set, day)"
+            (keydown.enter)="pick(set, day)"
+            (keydown.space)="$event.preventDefault(); pick(set, day)"
+          >
+            <ng-container *ngIf="set.cells[day.key] as cell">
+              <div class="cell-companies">
+                <div class="company-row" *ngFor="let company of cell.companies | slice: 0 : 2">
+                  <span class="company-dot" [style.background-color]="company.color"></span>
+                  <span class="company-name">{{ company.name }}</span>
+                  <span class="company-count">{{ company.count }}</span>
+                </div>
+                <div class="no-delivery" *ngIf="!cell.companies.length">No next-day delivery</div>
+                <button type="button" class="more-link" *ngIf="cell.companies.length > 2" (click)="openCompanies($event, set, day)">
+                  +{{ cell.companies.length - 2 }} more
+                </button>
+              </div>
+              <div class="cell-footer">
+                <span class="cell-covered">{{ cell.coveredShops }} of {{ set.shops.length }} shops</span>
+                <span class="current-tag" *ngIf="isCurrent(set, day)">Now</span>
+                <mat-icon class="picked-icon" *ngIf="isPicked(set, day)">check_circle</mat-icon>
+                <mat-icon class="best-star" *ngIf="isBest(set, day)">star</mat-icon>
+              </div>
+            </ng-container>
+          </div>
+        </ng-container>
+      </div>
     </div>
   </ng-container>
 
-  <!-- 2. Pick a day for each set -->
+  <!-- 2. Schedule -->
   <ng-container *ngIf="step === 1">
-    <h3 class="step-title">2. Pick a day for each set</h3>
-    <p class="step-help">
-      Company number = shops that company delivers to the next day. Bottom line = different shops (a shop with two companies
-      counts once). <mat-icon class="inline-star">star</mat-icon> = best day. Click to choose.
-    </p>
-
-    <ng-container>
-      <div class="coverage-bar">
-        <span class="coverage-label">Next-day coverage</span>
-        <span>{{ coverageText(plan) || 'Pick days to see next-day coverage' }}</span>
-      </div>
-
-      <div class="pick-actions">
-        <button mat-raised-button type="button" color="primary" (click)="autoPick(plan)">Auto-pick days</button>
-        <button mat-stroked-button type="button" [disabled]="!pickedCount(plan)" (click)="clearPicks(plan)">Clear</button>
-      </div>
-
-      <div class="pick-grid-scroll">
-        <div class="pick-grid" [style.grid-template-columns]="gridColumns">
-          <div class="grid-corner"></div>
-          <div class="day-header" *ngFor="let day of visitDays">
-            <div class="day-name">{{ day.date | date: 'd EEE' }}</div>
-            <div class="day-delivery">Delivery {{ day.deliveryDate | date: 'd EEE' }}</div>
-          </div>
-
-          <ng-container *ngFor="let set of plan.sets">
-            <div class="set-header">
-              <div class="set-name">Set {{ set.index + 1 }}</div>
-              <a href="" class="set-shops-link" (click)="openShops($event, plan, set)">{{ set.shops.length }} shops</a>
-            </div>
-            <div
-              *ngFor="let day of visitDays"
-              class="day-cell"
-              role="button"
-              tabindex="0"
-              [class.best]="isBest(set, day)"
-              [class.picked]="isPicked(plan, set, day)"
-              [class.taken]="!!takenBy(plan, set, day)"
-              [attr.aria-pressed]="isPicked(plan, set, day)"
-              [attr.title]="takenBy(plan, set, day) ? 'Picked for Set ' + (takenBy(plan, set, day)!.index + 1) : null"
-              (click)="pick(plan, set, day)"
-              (keydown.enter)="pick(plan, set, day)"
-              (keydown.space)="$event.preventDefault(); pick(plan, set, day)"
-            >
-              <ng-container *ngIf="set.cells[day.key] as cell">
-                <div class="cell-companies">
-                  <div class="company-row" *ngFor="let company of cell.companies | slice: 0 : 2">
-                    <span class="company-dot" [style.background-color]="company.color"></span>
-                    <span class="company-name">{{ company.name }}</span>
-                    <span class="company-count">{{ company.count }}</span>
-                  </div>
-                  <div class="no-delivery" *ngIf="!cell.companies.length">No next-day delivery</div>
-                  <button type="button" class="more-link" *ngIf="cell.companies.length > 2" (click)="openCompanies($event, set, day)">
-                    +{{ cell.companies.length - 2 }} more
-                  </button>
-                </div>
-                <div class="cell-footer">
-                  <span class="cell-covered">{{ cell.coveredShops }} of {{ set.shops.length }} shops</span>
-                  <mat-icon class="picked-icon" *ngIf="isPicked(plan, set, day)">check_circle</mat-icon>
-                  <mat-icon class="best-star" *ngIf="isBest(set, day)">star</mat-icon>
-                </div>
-              </ng-container>
-            </div>
-          </ng-container>
-        </div>
-      </div>
-    </ng-container>
-  </ng-container>
-
-  <!-- 3. Schedule -->
-  <ng-container *ngIf="step === 2">
-    <h3 class="step-title">3. Schedule</h3>
+    <h3 class="step-title">2. Schedule</h3>
 
     <div class="schedule-plan">
       <div class="schedule-plan-name">
-        {{ plan.salesPerson.name }}
-        <span class="schedule-plan-area">· {{ plan.salesPerson.areaName }} · {{ plan.sets.length }} sets of up to {{ plan.retailersPerSet }}</span>
+        {{ data.salesPerson.name }}
+        <span class="schedule-plan-area">· {{ data.salesPerson.areaName }} · {{ sets.length }} {{ sets.length === 1 ? 'set' : 'sets' }}</span>
       </div>
       <div class="schedule-cards">
-        <div class="schedule-card" *ngFor="let row of scheduleRows(plan)" [class.empty]="!row.set">
+        <div class="schedule-card" *ngFor="let row of scheduleRows" [class.empty]="!row.set">
           <div class="schedule-day">{{ row.day.date | date: 'd EEE' }}</div>
           <ng-container *ngIf="row.set && row.cell; else noVisit">
-            <a href="" class="schedule-set schedule-set-link" (click)="openShops($event, plan, row.set, row.day)">Set {{ row.set.index + 1 }}</a>
+            <a href="" class="schedule-set schedule-set-link" (click)="openShops($event, row.set, row.day)">Set {{ row.set.index + 1 }}</a>
             <div class="schedule-shops">{{ row.cell.coveredShops }} of {{ row.set.shops.length }} shops</div>
+            <div class="schedule-repeat" *ngIf="row.set.currentKey !== row.day.key">Moved from {{ row.set.currentDate | date: 'd EEE' }}</div>
           </ng-container>
           <ng-template #noVisit>
             <div class="schedule-set">No visit</div>
           </ng-template>
-          <div class="schedule-repeat" *ngIf="row.set && row.day.dates.length > 1">{{ repeatText(row.day) }}</div>
         </div>
       </div>
     </div>
@@ -191,6 +123,6 @@
   <button mat-stroked-button type="button" *ngIf="step > 0" (click)="back()">Back</button>
   <span class="wizard-footer-spacer"></span>
   <span class="wizard-footer-hint" *ngIf="nextHint">{{ nextHint }}</span>
-  <button mat-raised-button color="primary" type="button" *ngIf="step < 2" [disabled]="!canGoNext" (click)="next()">Next</button>
-  <button mat-raised-button color="primary" type="button" *ngIf="step === 2" (click)="assignSchedule()">Assign schedule</button>
+  <button mat-raised-button color="primary" type="button" *ngIf="step === 0" [disabled]="!canGoNext" (click)="next()">Next</button>
+  <button mat-raised-button color="primary" type="button" *ngIf="step === 1" (click)="assignSchedule()">Assign schedule</button>
 </div>

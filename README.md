@@ -74,6 +74,7 @@ src/
       salesperson/            /salesperson-list (list, edit lead dialog, create, edit profile)
       attendance/             /attendance-report (approval requests, details, monthly summary)
       sales-person-planning/  /salesperson-planning (areas, sales person mapping, task generation)
+      reschedule-tasks/       /reschedule-tasks (new: move a sales person's existing days of tasks to better visit days)
       tasks/                  /task-report and task details
       interactions/           /interaction-list (search, summary, export)
       performance/            /performance (sales person performance report)
@@ -98,7 +99,7 @@ All data access goes through four places, as in the original app:
 
 ## Tests
 
-`e2e/` holds an end-to-end regression suite (Playwright, headless Chromium, 1440×900). It covers sign-in/out and the route guard, Sales Person, Attendance, Task Report and Task Details, Interactions, Performance and Planning, including the Excel exports.
+`e2e/` holds an end-to-end regression suite (Playwright, headless Chromium, 1440×900). It covers sign-in/out and the route guard, Sales Person, Attendance, Task Report and Task Details, Interactions, Performance, Planning and Reschedule Tasks, including the Excel exports.
 
 ```bash
 npx playwright install chromium

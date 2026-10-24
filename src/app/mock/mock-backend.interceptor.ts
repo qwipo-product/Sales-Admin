@@ -71,8 +71,7 @@ export class MockBackendInterceptor implements HttpInterceptor {
         return this.ok({ success: true, data: this.shopsForSchedule(body) }, 500);
       }
       if (url === `${core}/customer/company_share_by_salesperson`) {
-        // Slow on purpose (2 s): the Company field shows its loader while the shares load.
-        return this.ok({ success: true, data: this.companyShareBySalesPerson(body) }, 2000);
+        return this.ok({ success: true, data: this.companyShareBySalesPerson(body) }, 300);
       }
       if (url === `${core}/customer` && request.method === 'POST') {
         return this.ok({ success: true, data: [this.createCoreCustomer(body)] });
@@ -373,6 +372,9 @@ export class MockBackendInterceptor implements HttpInterceptor {
       case 'CreateTasks':
         this.createTasks(input);
         break;
+      case 'RescheduleTasks':
+        this.rescheduleTasks(input);
+        break;
       default:
         break;
     }
@@ -386,43 +388,52 @@ export class MockBackendInterceptor implements HttpInterceptor {
     this.updateSalesPersonIds({ salesPersonIds: [], salesPersonId, customerIds });
   }
 
-  /**
-   * Mirrors the backend job: one TasksReport per sales person per date, one Task per shop. With a `schedule` (sets
-   * picked in the Generate Tasks dialog) each date gets exactly the shops of its set; without one, the filtered
-   * shops are handed out `taskCountPerDay` per date.
-   */
+  /** Mirrors the backend job: one TasksReport per sales person per date, `taskCountPerDay` filtered shops per date. */
   private createTasks(input: any) {
     const statusId = input.messageQueueStatusId;
     if (statusId) {
       this.db.setDoc('MessageQueueStatus', statusId, { messageQueueStatusId: statusId, status: 2, createdTimeStamp: Date.now() });
     }
-    const salesPersons: any[] = input.salesPersons || [];
-    if (Array.isArray(input.schedule)) {
-      const customersById = new Map(this.db.customers().map((c) => [c.id, c]));
-      input.schedule.forEach((day: any) => {
-        const sp = salesPersons.find((s) => s.id === day.salesPersonId) || { id: day.salesPersonId };
-        const customers = (day.customerIds || []).map((id: string) => customersById.get(id)).filter(Boolean) as MockCustomer[];
-        this.writeDayTasks(sp, day.taskDate, customers, `Set ${day.setNumber}`);
+    const filters = input.filters || {};
+    (input.salesPersons || []).forEach((sp: any) => {
+      const customers = this.filterCustomers(
+        {
+          isActive: filters.customerStatus || [],
+          businessStatus: filters.businessStatus || [],
+          businessType: filters.businessTypes || [],
+          customerOrderStatus: filters.customerOrderStatus || [],
+          companyIds: filters.companyIds || [],
+        },
+        this.db.customers().filter((c) => c.salesPersonId === sp.id),
+      );
+      const perDay = Number(sp.taskCountPerDay || sp.tasksCount || 0);
+      (input.taskDates || []).forEach((taskDate: string, index: number) => {
+        this.writeDayTasks(sp, taskDate, customers.slice(index * perDay, (index + 1) * perDay), sp.areaName || '');
       });
-    } else {
-      const filters = input.filters || {};
-      salesPersons.forEach((sp: any) => {
-        const customers = this.filterCustomers(
-          {
-            isActive: filters.customerStatus || [],
-            businessStatus: filters.businessStatus || [],
-            businessType: filters.businessTypes || [],
-            customerOrderStatus: filters.customerOrderStatus || [],
-            companyIds: filters.companyIds || [],
-          },
-          this.db.customers().filter((c) => c.salesPersonId === sp.id),
-        );
-        const perDay = Number(sp.taskCountPerDay || sp.tasksCount || 0);
-        (input.taskDates || []).forEach((taskDate: string, index: number) => {
-          this.writeDayTasks(sp, taskDate, customers.slice(index * perDay, (index + 1) * perDay), sp.areaName || '');
-        });
-      });
+    });
+    if (statusId) {
+      this.db.updateDoc('MessageQueueStatus', statusId, { status: 4, completedTimeStamp: Date.now() });
     }
+  }
+
+  /**
+   * "Reschedule Tasks" (not in the original app): the sales person's tasks from `fromDate` to `toDate` are replaced by
+   * `schedule`, one day of tasks per entry, in the given customer (stop) order.
+   */
+  private rescheduleTasks(input: any) {
+    const statusId = input.messageQueueStatusId;
+    if (statusId) {
+      this.db.setDoc('MessageQueueStatus', statusId, { messageQueueStatusId: statusId, status: 2, createdTimeStamp: Date.now() });
+    }
+    const sp = { id: input.salesPersonId, name: input.salesPersonName, areaId: input.areaId, areaName: input.areaName };
+    const inRange = (doc: any) => doc.salesPersonId === sp.id && doc.taskDate >= input.fromDate && doc.taskDate <= input.toDate;
+    this.db.listDocs('TasksReport').filter((d) => inRange(d.data)).forEach((d) => this.db.deleteDoc('TasksReport', d.id));
+    this.db.listDocs('Tasks').filter((d) => inRange(d.data)).forEach((d) => this.db.deleteDoc('Tasks', d.id));
+    const customersById = new Map(this.db.customers().map((c) => [c.id, c]));
+    (input.schedule || []).forEach((day: any) => {
+      const customers = (day.customerIds || []).map((id: string) => customersById.get(id)).filter(Boolean) as MockCustomer[];
+      this.writeDayTasks(sp, day.taskDate, customers, sp.areaName || '');
+    });
     if (statusId) {
       this.db.updateDoc('MessageQueueStatus', statusId, { status: 4, completedTimeStamp: Date.now() });
     }

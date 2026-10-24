@@ -1,18 +1,11 @@
-// Salesperson Planning -> Tasks tab: the Sales Person and Company drop-down panels render in the CDK overlay, outside
-// the component, so the rules for Material's own panel/option elements live here. The card, dot and share styles are
-// in sales-person-tasks.component.scss.
+// Reschedule Tasks page: the Sales Person drop-down panel renders in the CDK overlay, outside the component, so the
+// rules for Material's own panel/option elements live here. The card styles are in reschedule-tasks.component.scss.
 // Beats Material's `.mdc-menu-surface.mat-mdc-select-panel { max-height: 275px }`, which is injected after this sheet.
 div.mat-mdc-select-panel.sales-person-select-panel {
   max-height: 420px;
 }
 
-.sales-person-select-panel .mat-mdc-option .mdc-list-item__primary-text,
-.company-select-panel .mat-mdc-option .mdc-list-item__primary-text {
+.sales-person-select-panel .mat-mdc-option .mdc-list-item__primary-text {
   flex: 1 1 auto;
   min-width: 0;
-}
-
-.company-select-panel .mat-mdc-option .mdc-list-item__primary-text {
-  display: flex;
-  align-items: center;
 }

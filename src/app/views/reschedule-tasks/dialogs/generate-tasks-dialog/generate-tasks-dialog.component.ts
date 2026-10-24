@@ -5,25 +5,22 @@ import Swal from 'sweetalert2';
 
 import { AppLoaderService } from '../../../../shared/services/app-loader/app-loader.service';
 import { formatDates, generateMessageQueueStatusId } from '../../../../shared/helpers/utils';
-import { MessageQueueService } from '../../services/message-queue.service';
-import { ScopedLoader } from '../../services/scoped-loader';
+import { MessageQueueService } from '../../../sales-person-planning/services/message-queue.service';
+import { ScopedLoader } from '../../../sales-person-planning/services/scoped-loader';
 import {
   CompanyOption,
-  CreateTasksPayload,
-  GenerateTasksDialogData,
-  SalesPerson,
+  RescheduleDialogData,
+  RescheduleTasksPayload,
   ScheduleShop,
   ScheduledTaskDay,
-} from '../../models/sales-person-planning.models';
+} from '../../models/reschedule-tasks.models';
 import { SetDetailsDialogComponent, SetDetailsDialogData } from '../set-details-dialog/set-details-dialog.component';
 
-/** A visit day column: the first date of each weekday in the selected range. Sundays are never visit days. */
+/** A visit day column: one date of the selected range. Sundays are never visit days. */
 export interface VisitDay {
   key: string; // 'yyyy-MM-dd' of `date`
   date: Date;
   deliveryDate: Date; // the next day
-  /** Every date of the range on this weekday: a set picked for this day is visited on all of them. */
-  dates: Date[];
 }
 
 export interface CompanyCount {
@@ -39,24 +36,15 @@ export interface SetDayCell {
   deliveries: number; // company deliveries (a shop with two companies counts twice)
 }
 
+/** One existing day of tasks, which can be moved to another visit day. */
 export interface ShopSet {
   index: number; // 0-based; shown as "Set {index + 1}"
-  shops: ScheduleShop[];
+  /** The date the set's tasks are on now ('yyyy-MM-dd'). */
+  currentKey: string;
+  currentDate: Date;
+  shops: ScheduleShop[]; // stop order
   cells: { [dayKey: string]: SetDayCell };
   bestDayKeys: string[];
-}
-
-export interface SalesPersonPlan {
-  salesPerson: SalesPerson;
-  /** Shops matching the filters, most companies first. */
-  shops: ScheduleShop[];
-  numberOfSets: number;
-  retailersPerSet: number;
-  sets: ShopSet[];
-  /** `${numberOfSets}x${retailersPerSet}` the sets were built for (they are rebuilt when it changes). */
-  builtFor: string;
-  /** Set index -> visit day key. A day holds at most one set. */
-  picks: { [setIndex: number]: string };
 }
 
 export interface ScheduleRow {
@@ -65,15 +53,12 @@ export interface ScheduleRow {
   cell?: SetDayCell;
 }
 
-const DEFAULT_RETAILERS_PER_SET = 35;
-
 /**
- * "Generate Tasks" dialog of the Tasks tab (replaces production's "View Tasks Preview" table).
- * Plans one sales person at a time.
- * 1. Sets: number of sets and retailers per set. When the sets can't hold every shop, the shops that stock the most of
- *    the selected companies are kept.
- * 2. Pick days: one visit day per set, judged by next-day company deliveries (manual, or "Auto-pick days").
- * 3. Schedule: the day-by-day schedule, then "Assign schedule" queues a CreateTasks message with the shops of every visit date.
+ * "Reschedule Tasks" dialog, opened by the Reschedule Tasks page for one sales person and a date range. Each existing
+ * day of tasks in the range is a set; the sets start on their current dates.
+ * 1. Pick days: one visit day per set, judged by next-day company deliveries (manual, or "Auto-pick days").
+ * 2. Schedule: the day-by-day preview, then "Assign schedule" queues a RescheduleTasks message that replaces the sales
+ *    person's tasks in the range.
  */
 @Component({
   selector: 'generate-tasks-dialog',
@@ -81,10 +66,12 @@ const DEFAULT_RETAILERS_PER_SET = 35;
   styleUrls: ['./generate-tasks-dialog.component.scss'],
 })
 export class GenerateTasksDialogComponent implements OnDestroy {
-  readonly steps = ['Sets', 'Pick days', 'Schedule'];
+  readonly steps = ['Pick days', 'Schedule'];
   step = 0;
   visitDays: VisitDay[];
-  plan: SalesPersonPlan;
+  sets: ShopSet[];
+  /** Set index -> visit day key. A day holds at most one set. */
+  picks: { [setIndex: number]: string } = {};
   private companies = new Map<string, CompanyOption>();
   private loader: ScopedLoader;
 
@@ -94,21 +81,15 @@ export class GenerateTasksDialogComponent implements OnDestroy {
     private egretLoader: AppLoaderService,
     private messageQueueService: MessageQueueService,
     @Inject(LOCALE_ID) private locale: string,
-    @Inject(MAT_DIALOG_DATA) public data: GenerateTasksDialogData
+    @Inject(MAT_DIALOG_DATA) public data: RescheduleDialogData
   ) {
     this.loader = new ScopedLoader(this.egretLoader);
     (data.companies || []).forEach((company) => this.companies.set(company.id, company));
-    this.visitDays = this.getVisitDays(data.dates || []);
-    const salesPerson = data.salesPerson;
-    this.plan = {
-      salesPerson,
-      shops: this.byCompanyCount((data.shops || []).filter((shop) => shop.salesperson_id === salesPerson.id)),
-      numberOfSets: Math.max(1, this.visitDays.length),
-      retailersPerSet: Number(salesPerson.tasksCount) || DEFAULT_RETAILERS_PER_SET,
-      sets: [],
-      builtFor: '',
-      picks: {},
-    };
+    this.visitDays = (data.dates || [])
+      .filter((date) => date.getDay() !== 0)
+      .map((date) => ({ key: this.ymd(date), date, deliveryDate: new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1) }));
+    this.sets = (data.sets || []).map((existing, index) => this.buildSet(index, existing.taskDate, existing.shops));
+    this.resetPicks();
   }
 
   ngOnDestroy(): void {
@@ -116,41 +97,30 @@ export class GenerateTasksDialogComponent implements OnDestroy {
   }
 
   // ------------------------------------------------------------------------------------------- navigation
+  /** More sets than visit days (tasks on Sundays can cause it): some sets could not get a day. */
+  get tooManySets(): boolean {
+    return this.sets.length > this.visitDays.length;
+  }
+
   get canGoNext(): boolean {
-    if (this.step === 0) {
-      return this.visitDays.length > 0 && this.plan.shops.length > 0 && this.isPlanValid(this.plan);
-    }
-    if (this.step === 1) {
-      return this.isPlanComplete(this.plan);
-    }
-    return false;
+    return this.step === 0 && this.isComplete;
   }
 
   /** Why "Next" is disabled. */
   get nextHint(): string {
-    if (this.step === 0) {
-      if (!this.visitDays.length) {
-        return 'The selected dates have no visit days';
-      }
-      if (!this.plan.shops.length) {
-        return 'No shops match the filters';
-      }
-      return this.canGoNext ? '' : 'Check the number of sets and retailers per set';
+    if (this.step !== 0 || this.isComplete) {
+      return '';
     }
-    if (this.step === 1 && !this.canGoNext) {
-      return `Pick a day for every set (${this.pickedCount(this.plan)} of ${this.plan.sets.length} picked)`;
+    if (this.tooManySets) {
+      return `${this.sets.length} sets but only ${this.visitDays.length} visit days`;
     }
-    return '';
+    return `Pick a day for every set (${this.pickedCount} of ${this.sets.length} picked)`;
   }
 
   next() {
-    if (!this.canGoNext) {
-      return;
+    if (this.canGoNext) {
+      this.step++;
     }
-    if (this.step === 0) {
-      this.buildSets(this.plan);
-    }
-    this.step++;
   }
 
   back() {
@@ -166,118 +136,81 @@ export class GenerateTasksDialogComponent implements OnDestroy {
     }
   }
 
-  // ------------------------------------------------------------------------------------------- step 1: sets
-  isPlanValid(plan: SalesPersonPlan): boolean {
-    const sets = Number(plan.numberOfSets);
-    const perSet = Number(plan.retailersPerSet);
-    return Number.isInteger(sets) && sets >= 1 && sets <= this.visitDays.length && Number.isInteger(perSet) && perSet >= 1;
-  }
-
-  slots(plan: SalesPersonPlan): number {
-    return plan.numberOfSets * plan.retailersPerSet;
-  }
-
-  leftOut(plan: SalesPersonPlan): number {
-    return Math.max(0, plan.shops.length - this.slots(plan));
-  }
-
-  suggestedPerSet(plan: SalesPersonPlan): number {
-    return Math.ceil(plan.shops.length / plan.numberOfSets);
-  }
-
-  useSuggested(event: Event, plan: SalesPersonPlan) {
-    event.preventDefault();
-    plan.retailersPerSet = this.suggestedPerSet(plan);
-  }
-
-  // ------------------------------------------------------------------------------------------- step 2: pick days
+  // ------------------------------------------------------------------------------------------- step 1: pick days
   isBest(set: ShopSet, day: VisitDay): boolean {
     return set.bestDayKeys.includes(day.key);
   }
 
-  isPicked(plan: SalesPersonPlan, set: ShopSet, day: VisitDay): boolean {
-    return plan.picks[set.index] === day.key;
+  isPicked(set: ShopSet, day: VisitDay): boolean {
+    return this.picks[set.index] === day.key;
+  }
+
+  isCurrent(set: ShopSet, day: VisitDay): boolean {
+    return set.currentKey === day.key;
   }
 
   /** The other set that already holds this day, if any. */
-  takenBy(plan: SalesPersonPlan, set: ShopSet, day: VisitDay): ShopSet | undefined {
-    return plan.sets.find((other) => other !== set && plan.picks[other.index] === day.key);
+  takenBy(set: ShopSet, day: VisitDay): ShopSet | undefined {
+    return this.sets.find((other) => other !== set && this.picks[other.index] === day.key);
   }
 
   /** Picks the day for the set (the set that held the day loses it); picking the picked day again clears it. */
-  pick(plan: SalesPersonPlan, set: ShopSet, day: VisitDay) {
-    if (plan.picks[set.index] === day.key) {
-      delete plan.picks[set.index];
+  pick(set: ShopSet, day: VisitDay) {
+    if (this.picks[set.index] === day.key) {
+      delete this.picks[set.index];
       return;
     }
-    const holder = this.takenBy(plan, set, day);
+    const holder = this.takenBy(set, day);
     if (holder) {
-      delete plan.picks[holder.index];
+      delete this.picks[holder.index];
     }
-    plan.picks[set.index] = day.key;
+    this.picks[set.index] = day.key;
   }
 
-  pickedCount(plan: SalesPersonPlan): number {
-    return Object.keys(plan.picks).length;
+  get pickedCount(): number {
+    return Object.keys(this.picks).length;
   }
 
-  isPlanComplete(plan: SalesPersonPlan): boolean {
-    return plan.sets.length > 0 && this.pickedCount(plan) === plan.sets.length;
+  get isComplete(): boolean {
+    return this.sets.length > 0 && this.pickedCount === this.sets.length;
   }
 
-  clearPicks(plan: SalesPersonPlan) {
-    plan.picks = {};
-  }
-
-  /** Gives every set its own day so that the most different shops get a next-day delivery (ties: most deliveries). */
-  autoPick(plan: SalesPersonPlan) {
-    const days = this.visitDays;
-    const sets = plan.sets;
-    const memo = new Map<string, { shops: number; deliveries: number; choice: number[] }>();
-    const solve = (i: number, used: number): { shops: number; deliveries: number; choice: number[] } => {
-      if (i === sets.length) {
-        return { shops: 0, deliveries: 0, choice: [] };
-      }
-      const key = `${i}|${used}`;
-      const cached = memo.get(key);
-      if (cached) {
-        return cached;
-      }
-      let best = { shops: -1, deliveries: -1, choice: [] as number[] };
-      days.forEach((day, d) => {
-        if (used & (1 << d)) {
-          return;
-        }
-        const cell = sets[i].cells[day.key];
-        const rest = solve(i + 1, used | (1 << d));
-        const shops = cell.coveredShops + rest.shops;
-        const deliveries = cell.deliveries + rest.deliveries;
-        if (shops > best.shops || (shops === best.shops && deliveries > best.deliveries)) {
-          best = { shops, deliveries, choice: [d, ...rest.choice] };
-        }
-      });
-      memo.set(key, best);
-      return best;
-    };
-    const { choice } = solve(0, 0);
-    plan.picks = {};
-    sets.forEach((set, i) => {
-      if (choice[i] !== undefined) {
-        plan.picks[set.index] = days[choice[i]].key;
+  /** Every set back on its current date (sets now on a Sunday or outside the visit days stay unpicked). */
+  resetPicks() {
+    this.picks = {};
+    this.sets.forEach((set) => {
+      if (this.visitDays.some((day) => day.key === set.currentKey)) {
+        this.picks[set.index] = set.currentKey;
       }
     });
   }
 
-  /** "Next-day coverage" line of the picked sets, or '' before anything is picked. */
-  coverageText(plan: SalesPersonPlan): string {
-    const picked = plan.sets.filter((set) => plan.picks[set.index]);
-    if (!picked.length) {
-      return '';
+  clearPicks() {
+    this.picks = {};
+  }
+
+  /**
+   * Gives every set its own day so that the most different shops get a next-day delivery (ties: most deliveries, then
+   * keeping a set on its current date). Optimal assignment (Hungarian method), so it scales to long date ranges.
+   */
+  autoPick() {
+    const days = this.visitDays;
+    if (!this.sets.length || this.tooManySets) {
+      return;
     }
-    const covered = picked.reduce((total, set) => total + set.cells[plan.picks[set.index]].coveredShops, 0);
-    const shops = picked.reduce((total, set) => total + set.shops.length, 0);
-    const percent = shops ? Math.round((covered * 100) / shops) : 0;
-    return `${covered} of ${shops} shops get a next-day delivery (${percent}%) · ${picked.length} of ${plan.sets.length} sets picked`;
+    const weight = (set: ShopSet, day: VisitDay) => {
+      const cell = set.cells[day.key];
+      return cell.coveredShops * 1_000_000 + cell.deliveries * 10 + (set.currentKey === day.key ? 1 : 0);
+    };
+    const maxWeight = Math.max(...this.sets.flatMap((set) => days.map((day) => weight(set, day))));
+    const cost = this.sets.map((set) => days.map((day) => maxWeight - weight(set, day)));
+    const assignment = hungarian(cost);
+    this.picks = {};
+    this.sets.forEach((set, i) => {
+      if (assignment[i] >= 0) {
+        this.picks[set.index] = days[assignment[i]].key;
+      }
+    });
   }
 
   get gridColumns(): string {
@@ -294,13 +227,13 @@ export class GenerateTasksDialogComponent implements OnDestroy {
     });
   }
 
-  /** The set's retailers with the selected companies each one stocks ("N shops" in step 2, "Set N" in step 3). */
-  openShops(event: Event, plan: SalesPersonPlan, set: ShopSet, day?: VisitDay) {
+  /** The set's retailers with the companies each one stocks ("N shops" in step 1, "Set N" in step 2). */
+  openShops(event: Event, set: ShopSet, day?: VisitDay) {
     event.preventDefault();
     event.stopPropagation();
     this.openDetails({
       title: day ? `Set ${set.index + 1} · ${this.dayName(day.date)}` : `Set ${set.index + 1}`,
-      subtitle: `${plan.salesPerson.name} · ${set.shops.length} shops`,
+      subtitle: `${this.data.salesPerson.name} · ${set.shops.length} shops`,
       items: this.byCompanyCount(set.shops).map((shop) => {
         const count = this.companyCount(shop);
         return {
@@ -316,28 +249,21 @@ export class GenerateTasksDialogComponent implements OnDestroy {
     this.dialog.open(SetDetailsDialogComponent, { width: '380px', maxWidth: '92vw', autoFocus: false, data });
   }
 
-  // ------------------------------------------------------------------------------------------- step 3: schedule
-  scheduleRows(plan: SalesPersonPlan): ScheduleRow[] {
+  // ------------------------------------------------------------------------------------------- step 2: schedule
+  get scheduleRows(): ScheduleRow[] {
     return this.visitDays.map((day) => {
-      const set = plan.sets.find((s) => plan.picks[s.index] === day.key);
+      const set = this.sets.find((s) => this.picks[s.index] === day.key);
       return { day, set, cell: set?.cells[day.key] };
     });
-  }
-
-  /** "Also 29 Oct, 5 Nov" for a day that repeats in the selected range. */
-  repeatText(day: VisitDay): string {
-    const more = day.dates.slice(1);
-    const shown = more.slice(0, 2).map((date) => formatDate(date, 'd MMM', this.locale));
-    return `Also ${shown.join(', ')}${more.length > 2 ? ` +${more.length - 2}` : ''}`;
   }
 
   async assignSchedule() {
     const payload = this.buildPayload();
     this.loader.open();
     try {
-      await this.messageQueueService.postMessageToQueue({ messageType: 'CreateTasks', input: JSON.stringify(payload) });
+      await this.messageQueueService.postMessageToQueue({ messageType: 'RescheduleTasks', input: JSON.stringify(payload) });
       this.loader.close();
-      Swal.fire({ title: 'Success!', text: 'Tasks are being generated. Please wait for 5 minutes.', icon: 'success' });
+      Swal.fire({ title: 'Success!', text: 'Tasks are being rescheduled. Please wait for 5 minutes.', icon: 'success' });
       this.dialogRef.close({ assigned: true });
     } catch (error) {
       console.log('assignSchedule Error ::: ', error);
@@ -347,69 +273,32 @@ export class GenerateTasksDialogComponent implements OnDestroy {
     }
   }
 
-  buildPayload(): CreateTasksPayload {
-    const plan = this.plan;
-    const schedule: ScheduledTaskDay[] = [];
-    plan.sets.forEach((set) => {
-      const day = this.visitDays.find((d) => d.key === plan.picks[set.index]);
-      (day?.dates || []).forEach((date) => {
-        schedule.push({
-          salesPersonId: plan.salesPerson.id,
-          taskDate: this.ymd(date),
-          setNumber: set.index + 1,
-          customerIds: set.shops.map((shop) => shop.customer_id),
-        });
-      });
-    });
-    schedule.sort((a, b) => a.taskDate.localeCompare(b.taskDate));
+  buildPayload(): RescheduleTasksPayload {
+    const salesPerson = this.data.salesPerson;
+    const schedule: ScheduledTaskDay[] = this.sets
+      .filter((set) => this.picks[set.index])
+      .map((set) => ({
+        taskDate: this.picks[set.index],
+        setNumber: set.index + 1,
+        previousTaskDate: set.currentKey,
+        customerIds: set.shops.map((shop) => shop.customer_id),
+      }))
+      .sort((a, b) => a.taskDate.localeCompare(b.taskDate));
+    const dates = this.data.dates || [];
     return {
       messageQueueStatusId: generateMessageQueueStatusId(),
-      // CreateTasks keeps its list shape; the dialog always sends one sales person.
-      salesPersons: [
-        {
-          id: plan.salesPerson.id,
-          name: plan.salesPerson.name,
-          areaId: plan.salesPerson.areaId,
-          areaName: plan.salesPerson.areaName,
-          taskCountPerDay: plan.retailersPerSet,
-          numberOfSets: plan.sets.length,
-        },
-      ],
-      taskDates: [...new Set(schedule.map((day) => day.taskDate))],
-      filters: this.data.filters,
+      salesPersonId: salesPerson.id,
+      salesPersonName: salesPerson.name,
+      areaId: salesPerson.areaId,
+      areaName: salesPerson.areaName,
+      fromDate: this.ymd(dates[0]),
+      toDate: this.ymd(dates[dates.length - 1]),
       schedule,
     };
   }
 
   // ------------------------------------------------------------------------------------------- sets
-  /**
-   * Splits the plan's shops into sets: the `numberOfSets x retailersPerSet` shops stocking the most selected companies
-   * are kept, put in route order (a sweep around their centre, so a set is one neighbourhood) and cut into evenly
-   * sized sets. Picks are cleared when the sets change.
-   */
-  private buildSets(plan: SalesPersonPlan) {
-    const builtFor = `${plan.numberOfSets}x${plan.retailersPerSet}`;
-    if (plan.builtFor === builtFor) {
-      return;
-    }
-    const total = Math.min(plan.shops.length, plan.numberOfSets * plan.retailersPerSet);
-    const route = this.routeOrder(plan.shops.slice(0, total));
-    const sets: ShopSet[] = [];
-    let cursor = 0;
-    for (let i = 0; i < plan.numberOfSets; i++) {
-      const size = Math.floor(total / plan.numberOfSets) + (i < total % plan.numberOfSets ? 1 : 0);
-      const shops = route.slice(cursor, cursor + size);
-      cursor += size;
-      if (shops.length) {
-        sets.push(this.buildSet(sets.length, shops));
-      }
-    }
-    plan.sets = sets;
-    plan.picks = {};
-    plan.builtFor = builtFor;
-  }
-
-  private buildSet(index: number, shops: ScheduleShop[]): ShopSet {
+  private buildSet(index: number, currentKey: string, shops: ScheduleShop[]): ShopSet {
     const cells: { [dayKey: string]: SetDayCell } = {};
     this.visitDays.forEach((day) => {
       const deliveryWeekday = day.deliveryDate.getDay();
@@ -417,7 +306,7 @@ export class GenerateTasksDialogComponent implements OnDestroy {
       let coveredShops = 0;
       let deliveries = 0;
       shops.forEach((shop) => {
-        const delivering = this.selectedCompanies(shop).filter((stocked) => (stocked.delivery_days || []).includes(deliveryWeekday));
+        const delivering = this.knownCompanies(shop).filter((stocked) => (stocked.delivery_days || []).includes(deliveryWeekday));
         delivering.forEach((stocked) => counts.set(stocked.company_id, (counts.get(stocked.company_id) || 0) + 1));
         deliveries += delivering.length;
         if (delivering.length) {
@@ -433,61 +322,36 @@ export class GenerateTasksDialogComponent implements OnDestroy {
       cells[day.key] = { companies, coveredShops, deliveries };
     });
     const best = Math.max(0, ...Object.values(cells).map((cell) => cell.coveredShops));
+    const [year, month, date] = currentKey.split('-').map(Number);
     return {
       index,
+      currentKey,
+      currentDate: new Date(year, month - 1, date),
       shops,
       cells,
       bestDayKeys: best > 0 ? this.visitDays.filter((day) => cells[day.key].coveredShops === best).map((day) => day.key) : [],
     };
   }
 
-  /** Shops in a sweep around their centre point, so consecutive shops are neighbours. */
-  private routeOrder(shops: ScheduleShop[]): ScheduleShop[] {
-    if (shops.length < 2) {
-      return [...shops];
-    }
-    const latitude = shops.reduce((total, shop) => total + Number(shop.latitude), 0) / shops.length;
-    const longitude = shops.reduce((total, shop) => total + Number(shop.longitude), 0) / shops.length;
-    const angle = (shop: ScheduleShop) => Math.atan2(Number(shop.latitude) - latitude, Number(shop.longitude) - longitude);
-    return [...shops].sort((a, b) => angle(a) - angle(b) || a.customer_id.localeCompare(b.customer_id));
-  }
-
-  /** Most selected companies first (stable for equal counts). */
+  /** Most companies first (stable for equal counts). */
   private byCompanyCount(shops: ScheduleShop[]): ScheduleShop[] {
     return [...shops].sort((a, b) => this.companyCount(b) - this.companyCount(a) || a.customer_id.localeCompare(b.customer_id));
   }
 
-  /** The companies the shop stocks that are among the selected ones. */
-  private selectedCompanies(shop: ScheduleShop) {
+  /** The companies the shop stocks that the API listed. */
+  private knownCompanies(shop: ScheduleShop) {
     return (shop.companies || []).filter((stocked) => this.companies.has(stocked.company_id));
   }
 
   private companyCount(shop: ScheduleShop): number {
-    return this.selectedCompanies(shop).length;
+    return this.knownCompanies(shop).length;
   }
 
   private companyNames(shop: ScheduleShop): string[] {
-    return this.selectedCompanies(shop).map((stocked) => this.companies.get(stocked.company_id)?.name || stocked.company_id);
+    return this.knownCompanies(shop).map((stocked) => this.companies.get(stocked.company_id)?.name || stocked.company_id);
   }
 
   // ------------------------------------------------------------------------------------------- dates
-  /** First date of each weekday in the range, in date order; Sundays are skipped. */
-  private getVisitDays(dates: Date[]): VisitDay[] {
-    const days: VisitDay[] = [];
-    dates
-      .filter((date) => date.getDay() !== 0)
-      .forEach((date) => {
-        const existing = days.find((day) => day.date.getDay() === date.getDay());
-        if (existing) {
-          existing.dates.push(date);
-        } else {
-          const deliveryDate = new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1);
-          days.push({ key: this.ymd(date), date, deliveryDate, dates: [date] });
-        }
-      });
-    return days;
-  }
-
   dayName(date: Date): string {
     return formatDate(date, 'd EEE', this.locale);
   }
@@ -495,4 +359,63 @@ export class GenerateTasksDialogComponent implements OnDestroy {
   private ymd(date: Date): string {
     return formatDates([date])[0];
   }
+}
+
+/**
+ * Minimum-cost assignment of each row to its own column (rows <= columns), Hungarian method in O(rows² · columns).
+ * Returns, per row, the chosen column index.
+ */
+function hungarian(cost: number[][]): number[] {
+  const n = cost.length;
+  const m = n ? cost[0].length : 0;
+  const u = new Array(n + 1).fill(0);
+  const v = new Array(m + 1).fill(0);
+  const p = new Array(m + 1).fill(0); // p[j]: row (1-based) assigned to column j
+  const way = new Array(m + 1).fill(0);
+  for (let i = 1; i <= n; i++) {
+    p[0] = i;
+    let j0 = 0;
+    const minv = new Array(m + 1).fill(Infinity);
+    const used = new Array(m + 1).fill(false);
+    do {
+      used[j0] = true;
+      const i0 = p[j0];
+      let delta = Infinity;
+      let j1 = 0;
+      for (let j = 1; j <= m; j++) {
+        if (!used[j]) {
+          const cur = cost[i0 - 1][j - 1] - u[i0] - v[j];
+          if (cur < minv[j]) {
+            minv[j] = cur;
+            way[j] = j0;
+          }
+          if (minv[j] < delta) {
+            delta = minv[j];
+            j1 = j;
+          }
+        }
+      }
+      for (let j = 0; j <= m; j++) {
+        if (used[j]) {
+          u[p[j]] += delta;
+          v[j] -= delta;
+        } else {
+          minv[j] -= delta;
+        }
+      }
+      j0 = j1;
+    } while (p[j0] !== 0);
+    do {
+      const j1 = way[j0];
+      p[j0] = p[j1];
+      j0 = j1;
+    } while (j0);
+  }
+  const result = new Array(n).fill(-1);
+  for (let j = 1; j <= m; j++) {
+    if (p[j]) {
+      result[p[j] - 1] = j - 1;
+    }
+  }
+  return result;
 }

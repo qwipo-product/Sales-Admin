@@ -23,6 +23,8 @@ export const RoutePaths = {
   TASKS: 'task-report',
   TASK_DETAILS: 'task-details',
   SALESPERSON_PLANNING: 'salesperson-planning',
+  /** Not in the original app: Reschedule Tasks page. */
+  RESCHEDULE_TASKS: 'reschedule-tasks',
   SALESPERSON_LIST: 'salesperson-list',
   ATTENDANCE: 'attendance-report',
   PERFORMANCE_REPORT: 'performance',

@@ -1,0 +1,84 @@
+<ng-container *ngIf="permissionObj?.view">
+  <div class="row">
+    <div class="col-md-6">
+      <h2 class="card-title m-3">Reschedule Tasks</h2>
+    </div>
+  </div>
+  <div class="m-3">
+    <div class="mat-elevation-z8" *ngIf="salesPersonList && salesPersonList.length > 0">
+      <div class="table-container p-10">
+        <h2 class="card-title m-3 text-violet">Filter by</h2>
+        <form [formGroup]="form">
+          <div class="row">
+            <div class="col-12">
+              <mat-form-field class="full-width">
+                <mat-label>Sales Person</mat-label>
+                <mat-select formControlName="salesPersonId" panelClass="sales-person-select-panel">
+                  <mat-select-trigger>{{ selectedSalesPerson?.name }}</mat-select-trigger>
+                  <mat-option *ngFor="let sp of salesPersonList" [value]="sp.id" class="sales-person-option">
+                    <div class="sp-card">
+                      <div class="sp-info">
+                        <div class="sp-name">{{ sp.name }}</div>
+                        <div class="sp-area">
+                          <mat-icon>location_on</mat-icon>
+                          <span>{{ sp.areaName }}</span>
+                        </div>
+                      </div>
+                      <div class="sp-stats">
+                        <div class="sp-stat">
+                          <span class="sp-stat-value">{{ sp.customerCount || 0 }}</span>
+                          <span class="sp-stat-label">Customers</span>
+                        </div>
+                      </div>
+                    </div>
+                  </mat-option>
+                </mat-select>
+                <mat-hint *ngIf="selectedSalesPerson">
+                  {{ selectedSalesPerson.areaName }} &middot; {{ selectedSalesPerson.customerCount || 0 }} customers
+                </mat-hint>
+              </mat-form-field>
+            </div>
+
+            <div class="col-md-6">
+              <mat-form-field class="full-width">
+                <mat-label>Select From Date</mat-label>
+                <input
+                  matInput
+                  formControlName="fromDate"
+                  [matDatepicker]="fromDatepicker"
+                  [min]="minDate"
+                  (dateChange)="onFromDateChange()"
+                />
+                <mat-datepicker-toggle matSuffix [for]="fromDatepicker"></mat-datepicker-toggle>
+                <mat-datepicker #fromDatepicker></mat-datepicker>
+              </mat-form-field>
+            </div>
+
+            <div class="col-md-6">
+              <mat-form-field class="full-width">
+                <mat-label>Select To Date</mat-label>
+                <input matInput formControlName="toDate" [matDatepicker]="toDatepicker" [min]="toDateMin" />
+                <mat-datepicker-toggle matSuffix [for]="toDatepicker"></mat-datepicker-toggle>
+                <mat-datepicker #toDatepicker></mat-datepicker>
+                <mat-hint *ngIf="taskDates.length">{{ taskDates.length }} {{ taskDates.length === 1 ? 'day' : 'days' }}</mat-hint>
+              </mat-form-field>
+            </div>
+
+            <!-- Always shown; enabled once a sales person and a date range are picked. -->
+            <div class="col-12 reschedule-row">
+              <button type="button" mat-raised-button color="primary" [disabled]="!canReschedule" (click)="reschedule()">
+                Reschedule
+              </button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+    <div class="mat-elevation-z8" *ngIf="salesPersonList && salesPersonList.length == 0">
+      <h2 class="card-title m-3 text-violet p-10 text-center">No Salespersons Assigned to Any Areas.</h2>
+    </div>
+  </div>
+</ng-container>
+<ng-container *ngIf="!permissionObj?.view">
+  <p class="text-center">You dont have permission , Please contact administrator</p>
+</ng-container>
